@@ -13,6 +13,17 @@ export function timeAgo(iso: string, now = Date.now()): string {
   return formatDate(iso);
 }
 
+export function formatTimeShort(iso: string, now = Date.now()): string {
+  const diff = Math.max(0, now - new Date(iso).getTime());
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "1 min";
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hr`;
+  const d = Math.floor(h / 24);
+  return `${d} d`;
+}
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
     day: "numeric",
