@@ -6,7 +6,7 @@ import { categories as staticCategories } from "@/data/categories";
 import type { Category, Paginated, Story } from "@/types/story";
 
 // ── Config ──────────────────────────────────────────────────────────────
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api/v1";
+const API_URL = import.meta.env["VITE_API_URL"] ?? "http://localhost:4000/api/v1";
 
 // ── Error type ──────────────────────────────────────────────────────────
 export class ApiError extends Error {
