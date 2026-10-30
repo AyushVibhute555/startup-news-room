@@ -18,4 +18,7 @@ messageSchema.index({ status: 1, createdAt: -1 });
 export type MessageAttrs = InferSchemaType<typeof messageSchema>;
 export type MessageDoc = HydratedDocument<MessageAttrs>;
 
-export const Message = mongoose.model('Message', messageSchema);
+// ✅ Guarded
+export const Message =
+    (mongoose.models.Message as mongoose.Model<MessageAttrs>) ||
+    mongoose.model<MessageAttrs>('Message', messageSchema);

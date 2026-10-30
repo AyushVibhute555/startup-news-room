@@ -6,6 +6,7 @@ export type Role = (typeof ROLES)[number];
 const userSchema = new Schema(
     {
         name: { type: String, required: true, trim: true, maxlength: 120 },
+        // ✅ unique:true on field → creates the index; do NOT also call schema.index().
         email: { type: String, required: true, unique: true, lowercase: true, trim: true },
         passwordHash: { type: String, required: true, select: false },
         role: { type: String, enum: ROLES, default: 'editor' },
@@ -26,9 +27,12 @@ const userSchema = new Schema(
     },
 );
 
-userSchema.index({ email: 1 }, { unique: true });
+// ❌ DO NOT add: userSchema.index({ email: 1 }, { unique: true }); — that's the duplicate.
 
 export type UserAttrs = InferSchemaType<typeof userSchema>;
 export type UserDoc = HydratedDocument<UserAttrs>;
 
-export const User = mongoose.model('User', userSchema);
+// ✅ Guarded
+export const User =
+    (mongoose.models.User as mongoose.Model<UserAttrs>) ||
+    mongoose.model<UserAttrs>('User', userSchema);

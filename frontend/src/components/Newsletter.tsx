@@ -1,8 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Container } from "@/components/Container";
+import { ApiError, subscribeNewsletter } from "@/lib/api";
 
 const schema = z.object({
   email: z.string().trim().email("Please enter a valid email address").max(255),
@@ -10,6 +12,7 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 
 export function Newsletter() {
+  const { t } = useTranslation();
   const {
     register,
     handleSubmit,
@@ -17,11 +20,16 @@ export function Newsletter() {
     formState: { errors, isSubmitting },
   } = useForm<Values>({ resolver: zodResolver(schema) });
 
-  const onSubmit = async (_values: Values) => {
-    // TODO: POST to Express API /api/newsletter
-    await new Promise((r) => setTimeout(r, 400));
-    toast.success("You're subscribed. Look out for tomorrow's briefing.");
-    reset();
+  const onSubmit = async (values: Values) => {
+    try {
+      await subscribeNewsletter(values.email);
+      toast.success(t("newsletter.success"));
+      reset();
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : t("newsletter.error"),
+      );
+    }
   };
 
   return (
@@ -37,25 +45,21 @@ export function Newsletter() {
       <Container>
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-end lg:gap-12">
           <div>
-            <p className="font-label text-sm text-inverse-muted">Daily newsletter</p>
+            <p className="font-label text-sm text-inverse-muted">{t("newsletter.eyebrow")}</p>
             <h2 className="headline mt-3 text-[clamp(1.875rem,3.6vw,3rem)] leading-[1.15]">
-              The day's startup
-              <br />
-              news, delivered to
-              <br />
-              your inbox.
+              {t("newsletter.title")}
             </h2>
           </div>
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <label htmlFor="nl-email" className="sr-only">
-              Email address
+              {t("contact.email")}
             </label>
             <div className="flex items-end gap-3">
               <input
                 id="nl-email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@company.com"
+                placeholder={t("newsletter.placeholder")}
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? "nl-error" : undefined}
                 {...register("email")}
@@ -66,7 +70,7 @@ export function Newsletter() {
                 disabled={isSubmitting}
                 className="inline-flex min-h-[48px] items-center justify-center rounded-[4px] bg-inverse-foreground px-6 text-sm font-semibold text-inverse transition-colors duration-200 hover:bg-signal hover:text-signal-foreground active:scale-[0.98] disabled:opacity-60"
               >
-                {isSubmitting ? "Subscribing..." : "Subscribe"}
+                {isSubmitting ? t("newsletter.subscribing") : t("newsletter.button")}
               </button>
             </div>
             {errors.email && (
@@ -75,7 +79,7 @@ export function Newsletter() {
               </p>
             )}
             <p className="mt-3 text-[0.8125rem] text-inverse-muted">
-              One email a day. Unsubscribe any time.
+              {t("newsletter.disclaimer")}
             </p>
           </form>
         </div>

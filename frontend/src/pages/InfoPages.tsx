@@ -2,12 +2,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { btnPrimary, btnSecondary } from "@/components/Buttons";
 import { Container } from "@/components/Container";
 import { Reveal } from "@/components/Reveal";
 import { PageTitle } from "@/pages/ListingPages";
+import { sendContactMessage, ApiError } from "@/lib/api";
 
 function Prose({ children }: { children: ReactNode }) {
   return (
@@ -18,36 +20,27 @@ function Prose({ children }: { children: ReactNode }) {
 }
 
 export function AboutPage() {
+  const { t } = useTranslation();
   return (
     <Container className="section-y !pt-12">
-      <PageTitle eyebrow="About" title="The startup story, every day.">
-        Startup News Room is a daily digest of the headlines that matter to founders, operators and
-        investors.
+      <PageTitle eyebrow={t("info.about.eyebrow")} title={t("info.about.title")}>
+        {t("info.about.subtitle")}
       </PageTitle>
       <Reveal>
         <Prose>
-          <h2>Our mission</h2>
-          <p>
-            We save you time. Every day we read across publications, pick the stories worth knowing
-            and summarise each in a few sentences, always linking to the original reporting.
-          </p>
-          <h2>What we cover</h2>
+          <h2>{t("info.about.missionTitle")}</h2>
+          <p>{t("info.about.missionBody")}</p>
+          <h2>{t("info.about.coverTitle")}</h2>
           <ul>
-            <li>Funding rounds and investor activity</li>
-            <li>Product launches and new companies</li>
-            <li>AI, fintech and SaaS businesses</li>
-            <li>Founders, markets and policy</li>
+            <li>{t("info.about.coverItem1")}</li>
+            <li>{t("info.about.coverItem2")}</li>
+            <li>{t("info.about.coverItem3")}</li>
+            <li>{t("info.about.coverItem4")}</li>
           </ul>
-          <h2>How we pick stories</h2>
-          <p>
-            Editors prioritise significance over noise: news that changes a market, a sector or how
-            companies are built. We avoid press-release rewrites and unverified rumours.
-          </p>
-          <h2>Editorial standards</h2>
-          <p>
-            Every summary credits its source and links to it. We correct errors quickly and
-            transparently, and advertising never influences what we publish.
-          </p>
+          <h2>{t("info.about.pickTitle")}</h2>
+          <p>{t("info.about.pickBody")}</p>
+          <h2>{t("info.about.standardsTitle")}</h2>
+          <p>{t("info.about.standardsBody")}</p>
         </Prose>
       </Reveal>
     </Container>
@@ -88,32 +81,42 @@ function Field({
 }
 
 export function ContactPage() {
+  const { t } = useTranslation();
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<ContactValues>({
-    resolver: zodResolver(contactSchema),
-  });
-  const onSubmit = async (_v: ContactValues) => {
-    // TODO: POST to Express API /api/contact
-    await new Promise((r) => setTimeout(r, 400));
-    toast.success("Thanks, your message has been sent.");
-    reset();
+  } = useForm<ContactValues>({ resolver: zodResolver(contactSchema) });
+
+  const onSubmit = async (values: ContactValues) => {
+    try {
+      await sendContactMessage({
+        name: values.name,
+        email: values.email,
+        subject: values.subject,
+        message: values.message,
+        type: "contact",
+      });
+      toast.success(t("contact.success"));
+      reset();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("contact.error"));
+    }
   };
+
   return (
     <Container className="section-y !pt-12">
-      <PageTitle eyebrow="Contact" title="Get in touch">
-        Questions, corrections or feedback. We read everything.
+      <PageTitle eyebrow={t("contact.eyebrow")} title={t("contact.title")}>
+        {t("contact.subtitle")}
       </PageTitle>
       <div className="mt-12 grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-6">
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6 lg:col-span-7">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <Field id="c-name" label="Name" error={errors.name?.message}>
+            <Field id="c-name" label={t("contact.name")} error={errors.name?.message}>
               <input id="c-name" autoComplete="name" className={fieldCls} {...register("name")} />
             </Field>
-            <Field id="c-email" label="Email" error={errors.email?.message}>
+            <Field id="c-email" label={t("contact.email")} error={errors.email?.message}>
               <input
                 id="c-email"
                 type="email"
@@ -123,26 +126,23 @@ export function ContactPage() {
               />
             </Field>
           </div>
-          <Field id="c-subject" label="Subject" error={errors.subject?.message}>
+          <Field id="c-subject" label={t("contact.subject")} error={errors.subject?.message}>
             <input id="c-subject" className={fieldCls} {...register("subject")} />
           </Field>
-          <Field id="c-message" label="Message" error={errors.message?.message}>
+          <Field id="c-message" label={t("contact.message")} error={errors.message?.message}>
             <textarea id="c-message" rows={6} className={fieldCls} {...register("message")} />
           </Field>
           <button type="submit" disabled={isSubmitting} className={btnPrimary()}>
-            {isSubmitting ? "Sending..." : "Send message"}
+            {isSubmitting ? t("contact.sending") : t("contact.send")}
           </button>
         </form>
         <aside className="border-t border-foreground pt-6 lg:col-span-4 lg:col-start-9">
-          <h2 className="font-label text-xl">Submit a story or tip</h2>
-          <p className="mt-3 text-muted-foreground">
-            Raising a round, launching a product or know something we should cover? Send us the
-            details and a link. We never publish a tip without verifying it.
-          </p>
+          <h2 className="font-label text-xl">{t("info.contact.tipTitle")}</h2>
+          <p className="mt-3 text-muted-foreground">{t("info.contact.tipBody")}</p>
           <p className="mt-4 text-sm text-muted-foreground">
-            Use the form and start your subject with{" "}
-            <span className="font-semibold text-foreground">"Tip:"</span> so it reaches the editors
-            directly.
+            {t("info.contact.tipHintPrefix")}{" "}
+            <span className="font-semibold text-foreground">"Tip:"</span>{" "}
+            {t("info.contact.tipHintSuffix")}
           </p>
         </aside>
       </div>
@@ -151,50 +151,49 @@ export function ContactPage() {
 }
 
 export function AdvertisePage() {
+  const { t } = useTranslation();
   const blocks = [
-    {
-      t: "Audience",
-      b: "Founders, operators, investors and early employees who read the day's startup news every morning.",
-    },
-    {
-      t: "Formats",
-      b: "Newsletter sponsorships, a single native placement on the home page, and sponsored briefings on a chosen theme.",
-    },
-    {
-      t: "Principles",
-      b: "Every partnership is clearly labelled. Sponsors never influence editorial selection or summaries.",
-    },
+    { title: t("info.advertise.audienceTitle"), body: t("info.advertise.audienceBody") },
+    { title: t("info.advertise.formatsTitle"), body: t("info.advertise.formatsBody") },
+    { title: t("info.advertise.principlesTitle"), body: t("info.advertise.principlesBody") },
   ];
   return (
     <Container className="section-y !pt-12">
-      <PageTitle eyebrow="Partnerships" title="Advertise with us">
-        Reach the people building the next generation of companies, in a calm, uncluttered setting.
+      <PageTitle eyebrow={t("info.advertise.eyebrow")} title={t("info.advertise.title")}>
+        {t("info.advertise.subtitle")}
       </PageTitle>
       <div className="mt-12 grid grid-cols-1 gap-x-6 gap-y-10 md:grid-cols-3">
         {blocks.map((x) => (
-          <Reveal key={x.t} className="border-t border-foreground pt-4">
-            <h2 className="font-label text-xl">{x.t}</h2>
-            <p className="mt-3 text-muted-foreground">{x.b}</p>
+          <Reveal key={x.title} className="border-t border-foreground pt-4">
+            <h2 className="font-label text-xl">{x.title}</h2>
+            <p className="mt-3 text-muted-foreground">{x.body}</p>
           </Reveal>
         ))}
       </div>
       <div className="mt-16 flex flex-wrap gap-3">
         <Link to="/contact" className={btnPrimary()}>
-          Contact partnerships
+          {t("info.advertise.contactCta")}
         </Link>
         <Link to="/about" className={btnSecondary()}>
-          About the newsroom
+          {t("info.advertise.aboutCta")}
         </Link>
       </div>
     </Container>
   );
 }
 
-function Legal({ title, sections }: { title: string; sections: [string, string][] }) {
+function Legal({
+  title,
+  sections,
+}: {
+  title: string;
+  sections: [string, string][];
+}) {
+  const { t } = useTranslation();
   return (
     <Container className="section-y !pt-12">
-      <PageTitle eyebrow="Legal" title={title}>
-        Last updated: 1 October 2026. Placeholder text for review by counsel.
+      <PageTitle eyebrow={t("info.legal.eyebrow")} title={title}>
+        {t("info.legal.lastUpdated")}
       </PageTitle>
       <Prose>
         {sections.map(([h, p]) => (
@@ -208,50 +207,58 @@ function Legal({ title, sections }: { title: string; sections: [string, string][
   );
 }
 
-export const PrivacyPage = () => (
-  <Legal
-    title="Privacy Policy"
-    sections={[
-      [
-        "Information we collect",
-        "If you subscribe to our newsletter we store your email address. We collect basic, anonymous usage statistics to understand which pages are read.",
-      ],
-      [
-        "How we use it",
-        "We use your email only to send the newsletter you asked for. We do not sell or rent personal data to anyone.",
-      ],
-      [
-        "Cookies",
-        "We use a small number of essential cookies, for example to remember your theme preference.",
-      ],
-      [
-        "Your rights",
-        "You can unsubscribe at any time and ask us to delete your data by contacting us.",
-      ],
-    ]}
-  />
-);
+// TODO(i18n): legal body paragraphs remain English — needs professional translation.
+// Headings and page titles are translated via t("info.legal.*").
+export const PrivacyPage = () => {
+  const { t } = useTranslation();
+  return (
+    <Legal
+      title={t("info.legal.privacyTitle")}
+      sections={[
+        [
+          "Information we collect",
+          "If you subscribe to our newsletter we store your email address. We collect basic, anonymous usage statistics to understand which pages are read.",
+        ],
+        [
+          "How we use it",
+          "We use your email only to send the newsletter you asked for. We do not sell or rent personal data to anyone.",
+        ],
+        [
+          "Cookies",
+          "We use a small number of essential cookies, for example to remember your theme preference.",
+        ],
+        [
+          "Your rights",
+          "You can unsubscribe at any time and ask us to delete your data by contacting us.",
+        ],
+      ]}
+    />
+  );
+};
 
-export const TermsPage = () => (
-  <Legal
-    title="Terms of Use"
-    sections={[
-      [
-        "Using the site",
-        "Startup News Room provides summaries of news published by third parties. Content is for information only and is not investment advice.",
-      ],
-      [
-        "Third-party links",
-        "We link to original sources. We are not responsible for the content or policies of external websites.",
-      ],
-      [
-        "Intellectual property",
-        "Summaries, design and branding belong to Startup News Room. Original articles belong to their publishers.",
-      ],
-      [
-        "Changes",
-        "We may update these terms from time to time. Continued use of the site means you accept the current version.",
-      ],
-    ]}
-  />
-);
+export const TermsPage = () => {
+  const { t } = useTranslation();
+  return (
+    <Legal
+      title={t("info.legal.termsTitle")}
+      sections={[
+        [
+          "Using the site",
+          "Startup News Room provides summaries of news published by third parties. Content is for information only and is not investment advice.",
+        ],
+        [
+          "Third-party links",
+          "We link to original sources. We are not responsible for the content or policies of external websites.",
+        ],
+        [
+          "Intellectual property",
+          "Summaries, design and branding belong to Startup News Room. Original articles belong to their publishers.",
+        ],
+        [
+          "Changes",
+          "We may update these terms from time to time. Continued use of the site means you accept the current version.",
+        ],
+      ]}
+    />
+  );
+};

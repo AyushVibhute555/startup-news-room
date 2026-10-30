@@ -1,3 +1,4 @@
+// src/components/TopNewsCarousel.tsx
 import { Link } from "react-router-dom";
 import {
   animate,
@@ -8,8 +9,9 @@ import {
 } from "framer-motion";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Container } from "@/components/Container";
-import { HighlightedText } from "@/components/HighlightedText";
+import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
 import { CarouselSkeleton } from "@/components/States";
 import { StoryImage } from "@/components/StoryImage";
 import { StoryMeta } from "@/components/StoryBits";
@@ -22,27 +24,29 @@ interface TopNewsCarouselProps {
 }
 
 function CarouselCard({ story, tabIndex }: { story: Story; tabIndex?: number }) {
+  const { t } = useTranslation();
   return (
     <article className="group relative flex h-full min-w-0 flex-col select-none">
       <StoryImage
         src={story.imageUrl}
         alt={story.title}
-        ratio="16/10"
-        badge={story.isBreaking ? "Breaking" : undefined}
+        ratio="16/9"
+        badge={story.isBreaking ? t("breaking") : undefined}
       />
-      <div className="mt-3 flex flex-1 flex-col">
-        <h3 className="headline min-h-[4.15em] line-clamp-3 text-[1.0625rem] font-[650] leading-[1.3] text-foreground">
+      <div className="mt-2.5 flex flex-1 flex-col">
+        <h3 className="headline min-h-[3.9em] line-clamp-3 text-[0.9375rem] font-[650] leading-[1.3] text-foreground">
           <Link
             to={`/news/${story.slug}`}
             tabIndex={tabIndex}
             className="after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-signal"
           >
             <span className="link-underline">
-              <HighlightedText text={story.title} />
+              {/* 👇 Changed from TranslatedText to TranslatedHighlightedText */}
+              <TranslatedHighlightedText text={story.title} />
             </span>
           </Link>
         </h3>
-        <div className="mt-auto pt-2">
+        <div className="mt-auto pt-1.5">
           <StoryMeta story={story} />
         </div>
       </div>
@@ -51,6 +55,7 @@ function CarouselCard({ story, tabIndex }: { story: Story; tabIndex?: number }) 
 }
 
 export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
+  const { t } = useTranslation();
   const reduce = useReducedMotion();
   const sectionRef = useRef<HTMLElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -68,10 +73,8 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
   const animControlsRef = useRef<ReturnType<typeof animate> | null>(null);
   const singleWidthRef = useRef<number>(0);
 
-  // Framer motion x position
   const x = useMotionValue(0);
 
-  // Ensure enough items to fill marquee seamlessly
   const items = useMemo(() => {
     if (!stories || stories.length === 0) return [];
     let list = stories;
@@ -81,7 +84,6 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     return list;
   }, [stories]);
 
-  // Pause helper with cooldown timer
   const triggerCooldown = useCallback((delayMs: number = 1200) => {
     if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
     setIsCooldownPaused(true);
@@ -90,7 +92,6 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     }, delayMs);
   }, []);
 
-  // Wrap x inside [-singleWidth, 0)
   const wrapX = useCallback(() => {
     const width = singleWidthRef.current;
     if (width <= 0) return;
@@ -104,7 +105,6 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     x.set(currentX);
   }, [x]);
 
-  // Measure single copy width using ResizeObserver
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
@@ -112,7 +112,6 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     const measure = () => {
       const firstChild = track.children[0] as HTMLElement | undefined;
       if (firstChild) {
-        // Measure first <ul> (which contains one copy of items)
         singleWidthRef.current = firstChild.getBoundingClientRect().width;
       }
     };
@@ -123,7 +122,6 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     return () => observer.disconnect();
   }, [items]);
 
-  // Document visibility listener
   useEffect(() => {
     const onVisibilityChange = () => {
       setIsDocHidden(document.hidden);
@@ -132,7 +130,6 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
-  // IntersectionObserver to pause when off-screen
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
@@ -148,7 +145,6 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Fine pointer check for hover
   const onPointerEnter = useCallback(() => {
     if (window.matchMedia("(pointer: fine)").matches) {
       setIsHovered(true);
@@ -174,7 +170,6 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     [triggerCooldown],
   );
 
-  // Compute pause state
   const isPaused =
     reduce ||
     isManuallyPaused ||
@@ -185,13 +180,11 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     isOffscreen ||
     isCooldownPaused;
 
-  // Animation frame loop for marquee
   useAnimationFrame((_, delta) => {
     if (isPaused) return;
     const width = singleWidthRef.current;
     if (width <= 0) return;
 
-    // Speed: 36px/s desktop, 28px/s mobile
     const isMobile = window.innerWidth < 768;
     const speed = isMobile ? 28 : 36;
     const dt = delta / 1000;
@@ -206,14 +199,12 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     x.set(currentX);
   });
 
-  // Calculate card step size (card width + 24px gap)
   const getCardStep = useCallback(() => {
     const width = window.innerWidth;
-    const cardWidth = width >= 1280 ? 286 : width >= 768 ? 264 : 232;
-    return cardWidth + 24;
+    const cardWidth = width >= 1280 ? 240 : width >= 768 ? 220 : 200;
+    return cardWidth + 16;
   }, []);
 
-  // Step prev / next with 0.6s cubic bezier
   const stepBy = useCallback(
     (direction: "prev" | "next") => {
       const step = getCardStep();
@@ -247,7 +238,7 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
     <section
       ref={sectionRef}
       aria-roledescription="carousel"
-      aria-label="Top news"
+      aria-label={t("home.topNews")}
       className={cn("relative py-6 sm:py-8", className)}
       onMouseEnter={onPointerEnter}
       onMouseLeave={onPointerLeave}
@@ -255,12 +246,11 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
       onBlur={onFocusOut}
     >
       <Container>
-        {/* Carousel Header Controls */}
         <div className="mb-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <span className="h-[18px] w-1 shrink-0 rounded-[1px] bg-signal" aria-hidden />
             <h2 className="headline text-[1.375rem] font-bold leading-tight tracking-[-0.02em] text-foreground">
-              Top news
+              {t("home.topNews")}
             </h2>
           </div>
 
@@ -297,33 +287,30 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
               to="/archive"
               className="ml-2 hidden text-sm font-semibold text-muted-foreground transition-colors duration-200 hover:text-signal sm:inline-block"
             >
-              See all
+              {t("home.seeAll")}
             </Link>
           </div>
         </div>
 
-        {/* Loading state skeleton */}
         {!stories ? (
           <CarouselSkeleton count={5} />
         ) : reduce ? (
-          /* Reduced-motion: native scroll-snapping row */
           <ul
             ref={scrollSnapRef}
             tabIndex={0}
-            aria-label="Top stories list"
-            className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+            aria-label={t("home.topNews")}
+            className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
           >
             {items.map((s, idx) => (
               <li
                 key={`${s._id}-${idx}`}
-                className="w-[232px] shrink-0 snap-start sm:w-[264px] xl:w-[286px]"
+                className="w-[200px] shrink-0 snap-start sm:w-[220px] xl:w-[240px]"
               >
                 <CarouselCard story={s} />
               </li>
             ))}
           </ul>
         ) : (
-          /* Infinite sub-pixel smooth transform marquee */
           <div
             className="relative overflow-hidden cursor-grab active:cursor-grabbing"
             style={{
@@ -351,24 +338,22 @@ export function TopNewsCarousel({ stories, className }: TopNewsCarouselProps) {
               }}
               className="flex w-max"
             >
-              {/* Primary list */}
-              <ul className="flex shrink-0 gap-6 pr-6">
+              <ul className="flex shrink-0 gap-4 pr-4">
                 {items.map((s, idx) => (
                   <li
                     key={`${s._id}-${idx}`}
-                    className="w-[232px] shrink-0 sm:w-[264px] xl:w-[286px]"
+                    className="w-[200px] shrink-0 sm:w-[220px] xl:w-[240px]"
                   >
                     <CarouselCard story={s} />
                   </li>
                 ))}
               </ul>
 
-              {/* Duplicated list for seamless infinite loop (aria-hidden and non-tabbable) */}
-              <ul aria-hidden className="flex shrink-0 gap-6 pr-6">
+              <ul aria-hidden className="flex shrink-0 gap-4 pr-4">
                 {items.map((s, idx) => (
                   <li
                     key={`${s._id}-dup-${idx}`}
-                    className="w-[232px] shrink-0 sm:w-[264px] xl:w-[286px]"
+                    className="w-[200px] shrink-0 sm:w-[220px] xl:w-[240px]"
                   >
                     <CarouselCard story={s} tabIndex={-1} />
                   </li>

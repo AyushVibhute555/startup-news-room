@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { App } from "./App";
 import "./styles.css";
+import "@/i18n";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { StoryImage } from "@/components/StoryImage";
-import { CategoryTag, StoryLink, StoryMeta } from "@/components/StoryBits";
-import { HighlightedText } from "@/components/HighlightedText";
+import { StoryLink, StoryMeta } from "@/components/StoryBits";
+import { TranslatedText } from "@/components/TranslatedText";
 import { cn } from "@/lib/utils";
 import type { Story } from "@/types/story";
+import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
 
 interface StoryRowProps {
   story: Story;
@@ -11,6 +13,8 @@ interface StoryRowProps {
 }
 
 export function StoryRow({ story, className, hasBorder = true }: StoryRowProps) {
+  const { t } = useTranslation();
+
   return (
     <article
       className={cn(
@@ -24,19 +28,17 @@ export function StoryRow({ story, className, hasBorder = true }: StoryRowProps) 
           src={story.imageUrl}
           alt={story.title}
           ratio="4/3"
-          badge={story.isBreaking ? "Breaking" : undefined}
+          badge={story.isBreaking ? t("breaking") : undefined}
         />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <CategoryTag
-          slug={story.category}
-          breaking={story.isBreaking}
-          className="text-muted-foreground"
-        />
+        <span className="font-label text-xs uppercase tracking-wide text-muted-foreground">
+          {t(`categories.${story.category}`)}
+        </span>
         <h3 className="headline mt-1.5 text-[0.9375rem] sm:text-[1rem] leading-[1.3] font-[650] line-clamp-3">
           <StoryLink story={story}>
             <span className="link-underline">
-              <HighlightedText text={story.title} />
+              <TranslatedHighlightedText text={story.title} />
             </span>
           </StoryLink>
         </h3>

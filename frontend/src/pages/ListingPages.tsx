@@ -1,9 +1,11 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { btnPrimary, btnSecondary } from "@/components/Buttons";
 import { Container } from "@/components/Container";
 import { Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
-import { CategoryTag, StoryLink, StoryMeta } from "@/components/StoryBits";
+import { TranslatedText } from "@/components/TranslatedText";
+import { StoryLink, StoryMeta } from "@/components/StoryBits";
 import { StoryCard } from "@/components/StoryCard";
 import { EmptyState, ErrorState, GridSkeleton, ListSkeleton } from "@/components/States";
 import { getStories } from "@/lib/api";
@@ -45,6 +47,7 @@ export function PageTitle({
 }
 
 function CategoryPageInner({ category }: { category: Category }) {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<Story[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -76,18 +79,18 @@ function CategoryPageInner({ category }: { category: Category }) {
 
   return (
     <Container className="section-y !pt-12">
-      <PageTitle eyebrow="Category" title={category.name}>
+      <PageTitle eyebrow={t("category.eyebrow")} title={t(`categories.${category.slug}`)}>
         {category.description}
       </PageTitle>
       <div className="mt-12">
         {error ? (
-          <ErrorState onRetry={() => setTick((t) => t + 1)} />
+          <ErrorState onRetry={() => setTick((t2) => t2 + 1)} />
         ) : items.length === 0 && loading ? (
           <GridSkeleton count={6} />
         ) : items.length === 0 ? (
           <EmptyState
-            title="No stories yet"
-            body="Check back soon for the latest in this category."
+            title={t("category.noStories")}
+            body={t("category.noStoriesBody")}
           />
         ) : (
           <>
@@ -103,7 +106,7 @@ function CategoryPageInner({ category }: { category: Category }) {
                   onClick={() => setPage((p) => p + 1)}
                   className={btnSecondary("min-w-[200px]")}
                 >
-                  Load more
+                  {t("common.loadMore")}
                 </button>
               </div>
             )}
@@ -114,16 +117,16 @@ function CategoryPageInner({ category }: { category: Category }) {
   );
 }
 
-/** Wrapper that reads :slug from URL params and finds the category. */
 export function CategoryPage() {
+  const { t } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
   const category = categories.find((c) => c.slug === slug);
 
   if (!category) {
     return (
       <Container className="section-y !pt-12">
-        <PageTitle eyebrow="Category" title="Not found">
-          This category doesn't exist.
+        <PageTitle eyebrow={t("category.eyebrow")} title={t("errors.notFound")}>
+          {t("category.notFound")}
         </PageTitle>
       </Container>
     );
@@ -133,6 +136,7 @@ export function CategoryPage() {
 }
 
 export function ArchivePage() {
+  const { t } = useTranslation();
   const { data, loading, error, retry } = useApi(() => getStories({ limit: 100 }), []);
   const groups = new Map<string, Story[]>();
   data?.items.forEach((s) => {
@@ -142,8 +146,8 @@ export function ArchivePage() {
 
   return (
     <Container className="section-y !pt-12">
-      <PageTitle eyebrow="Daily history" title="Archive">
-        Every headline we have published, day by day.
+      <PageTitle eyebrow={t("archive.eyebrow")} title={t("archive.title")}>
+        {t("archive.subtitle")}
       </PageTitle>
       <div className="mt-8">
         {error ? (
@@ -172,15 +176,16 @@ export function ArchivePage() {
                     <div className="min-w-0">
                       <h3 className="headline text-[1.125rem]">
                         <StoryLink story={s}>
-                          <span className="link-underline">{s.title}</span>
+                          <span className="link-underline">
+                            <TranslatedText text={s.title} />
+                          </span>
                         </StoryLink>
                       </h3>
                       <StoryMeta story={s} className="mt-1" />
                     </div>
-                    <CategoryTag
-                      slug={s.category}
-                      className="hidden pt-1.5 text-muted-foreground sm:inline-flex"
-                    />
+                    <span className="hidden pt-1.5 text-xs font-label uppercase tracking-wide text-muted-foreground sm:inline-flex">
+                      {t(`categories.${s.category}`)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -193,19 +198,25 @@ export function ArchivePage() {
 }
 
 export function SearchPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const q = searchParams.get("q") ?? "";
   const { data, loading, error, retry } = useApi(() => getStories({ q, limit: 100 }), [q]);
+
+  const resultLabel = data && q
+    ? t("search.results", { count: data.total })
+    : null;
+
   return (
     <Container className="section-y !pt-12">
-      <PageTitle eyebrow="Search" title={q ? `"${q}"` : "Search"}>
-        {data && q ? `${data.total} ${data.total === 1 ? "result" : "results"}` : null}
+      <PageTitle eyebrow={t("search.eyebrow")} title={q ? `"${q}"` : t("search.eyebrow")}>
+        {resultLabel}
       </PageTitle>
       <div className="mt-12">
         {!q ? (
           <EmptyState
-            title="Search the newsroom"
-            body="Use the search icon in the header to look for a company, topic or source."
+            title={t("search.placeholder")}
+            body={t("search.noResultsBody", { query: "" })}
           />
         ) : error ? (
           <ErrorState onRetry={retry} />
@@ -215,11 +226,11 @@ export function SearchPage() {
           <StoryGrid stories={data.items} />
         ) : (
           <EmptyState
-            title="No stories found"
-            body={`Nothing matched "${q}". Try a broader term or browse the latest headlines.`}
+            title={t("search.noResults")}
+            body={t("search.noResultsBody", { query: q })}
           >
             <Link to="/" className={btnPrimary()}>
-              Back to headlines
+              {t("errors.backHome")}
             </Link>
           </EmptyState>
         )}

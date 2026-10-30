@@ -26,7 +26,7 @@ export const contactSchema = z
         subject: z.string().trim().max(200).optional(),
         message: z.string().trim().min(10).max(5000),
         type: z.enum(['contact', 'tip']).default('contact'),
-        website: z.string().max(0, 'Honeypot must be empty').optional().or(z.literal('')),
+        website: z.string().max(500).optional(),
     })
     .strict();
 

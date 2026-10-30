@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import type { ReactNode } from "react";
-import { categoryName, timeAgo } from "@/lib/format";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { Story } from "@/types/story";
 
@@ -14,6 +14,7 @@ export function CategoryTag({
   breaking?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <span
       className={cn(
@@ -21,11 +22,29 @@ export function CategoryTag({
         className,
       )}
     >
-      {breaking && <span className="text-signal">Breaking</span>}
+      {breaking && <span className="text-signal">{t("breaking")}</span>}
       {breaking && <span aria-hidden className="h-3 w-px bg-border" />}
-      <span>{categoryName(slug)}</span>
+      <span>{t(`categories.${slug}`)}</span>
     </span>
   );
+}
+
+function useTimeAgo(iso: string): string {
+  const { t, i18n } = useTranslation();
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return t("time.justNow");
+  if (m < 60) return t("time.minutesAgo", { count: m });
+  const h = Math.floor(m / 60);
+  if (h < 24) return t("time.hoursAgo", { count: h });
+  const d = Math.floor(h / 24);
+  if (d === 1) return t("time.yesterday");
+  if (d < 7) return t("time.daysAgo", { count: d });
+  return new Date(iso).toLocaleDateString(i18n.language, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function StoryMeta({
@@ -37,6 +56,8 @@ export function StoryMeta({
   readTime?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
+  const timeLabel = useTimeAgo(story.publishedAt);
   return (
     <p
       className={cn(
@@ -46,14 +67,15 @@ export function StoryMeta({
     >
       <span className="font-medium text-foreground">{story.sourceName}</span>
       <time dateTime={story.publishedAt} suppressHydrationWarning>
-        {timeAgo(story.publishedAt)}
+        {timeLabel}
       </time>
-      {readTime && <span>{story.readTime} min read</span>}
+      {readTime && <span>{t("story.minRead", { count: story.readTime })}</span>}
     </p>
   );
 }
 
 export function SourceLink({ story, className }: { story: Story; className?: string }) {
+  const { t } = useTranslation();
   return (
     <a
       href={story.sourceUrl}
@@ -64,13 +86,14 @@ export function SourceLink({ story, className }: { story: Story; className?: str
         className,
       )}
     >
-      Source <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-      <span className="sr-only">: {story.sourceName} (opens in new tab)</span>
+      {t("story.source")} <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+      <span className="sr-only">
+        : {story.sourceName} {t("story.opensInNewTab")}
+      </span>
     </a>
   );
 }
 
-/** Stretched link: the whole card becomes clickable without nesting anchors. */
 export function StoryLink({
   story,
   children,

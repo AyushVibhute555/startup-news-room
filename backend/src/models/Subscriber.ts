@@ -17,4 +17,7 @@ subscriberSchema.index({ unsubscribeToken: 1 });
 export type SubscriberAttrs = InferSchemaType<typeof subscriberSchema>;
 export type SubscriberDoc = HydratedDocument<SubscriberAttrs>;
 
-export const Subscriber = mongoose.model('Subscriber', subscriberSchema);
+// ✅ Guarded
+export const Subscriber =
+    (mongoose.models.Subscriber as mongoose.Model<SubscriberAttrs>) ||
+    mongoose.model<SubscriberAttrs>('Subscriber', subscriberSchema);

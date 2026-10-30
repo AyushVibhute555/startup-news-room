@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Container } from "@/components/Container";
-import { HighlightedText } from "@/components/HighlightedText";
+import { TranslatedText } from "@/components/TranslatedText";
 import type { Story } from "@/types/story";
 
 interface BreakingBarProps {
@@ -10,6 +11,7 @@ interface BreakingBarProps {
 }
 
 export function BreakingBar({ stories }: BreakingBarProps) {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -30,7 +32,7 @@ export function BreakingBar({ stories }: BreakingBarProps) {
   return (
     <div
       role="region"
-      aria-label="Breaking news bar"
+      aria-label={t("breaking")}
       className="border-b border-border bg-surface-alt text-[0.8125rem]"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -39,7 +41,7 @@ export function BreakingBar({ stories }: BreakingBarProps) {
     >
       <Container className="flex h-10 items-center gap-3">
         <span className="inline-flex shrink-0 items-center rounded-[3px] bg-signal px-2 py-0.5 text-xs font-semibold leading-none text-signal-foreground">
-          Breaking
+          {t("breaking")}
         </span>
 
         <div className="relative min-w-0 flex-1 overflow-hidden">
@@ -56,7 +58,7 @@ export function BreakingBar({ stories }: BreakingBarProps) {
                 to={`/news/${current.slug}`}
                 className="font-medium text-foreground transition-colors duration-200 hover:text-signal"
               >
-                <HighlightedText text={current.title} />
+                <TranslatedText text={current.title} />
               </Link>
             </motion.div>
           </AnimatePresence>

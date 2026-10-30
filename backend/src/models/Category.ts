@@ -19,9 +19,13 @@ const categorySchema = new Schema(
     },
 );
 
+// ✅ Explicit index NOT duplicated — slug already has unique:true above.
 categorySchema.index({ order: 1 });
 
 export type CategoryAttrs = InferSchemaType<typeof categorySchema>;
 export type CategoryDoc = HydratedDocument<CategoryAttrs>;
 
-export const Category = mongoose.model('Category', categorySchema);
+// ✅ Guarded
+export const Category =
+    (mongoose.models.Category as mongoose.Model<CategoryAttrs>) ||
+    mongoose.model<CategoryAttrs>('Category', categorySchema);

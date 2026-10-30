@@ -2,6 +2,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Container } from "@/components/Container";
 import { btnPrimary } from "@/components/Buttons";
 
@@ -12,6 +13,7 @@ export function SearchOverlay({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const [q, setQ] = useState("");
   const navigate = useNavigate();
 
@@ -25,17 +27,17 @@ export function SearchOverlay({
           <Container className="pt-6">
             <div className="flex justify-end">
               <Dialog.Close
-                aria-label="Close search"
+                aria-label={t("story.searchDialog.close")}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-[4px] hover:text-signal"
               >
                 <X className="h-6 w-6" />
               </Dialog.Close>
             </div>
             <Dialog.Title className="font-label mt-12 text-sm text-muted-foreground">
-              Search the newsroom
+              {t("story.searchDialog.title")}
             </Dialog.Title>
             <Dialog.Description className="sr-only">
-              Type a keyword and press enter to search stories.
+              {t("story.searchDialog.description")}
             </Dialog.Description>
             <form
               role="search"
@@ -50,18 +52,18 @@ export function SearchOverlay({
             >
               <Search className="hidden h-7 w-7 shrink-0 sm:block" aria-hidden />
               <label htmlFor="site-search" className="sr-only">
-                Search stories
+                {t("story.searchDialog.inputLabel")}
               </label>
               <input
                 id="site-search"
                 autoFocus
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Funding, AI, a company..."
+                placeholder={t("story.searchDialog.inputPlaceholder")}
                 className="headline min-w-0 flex-1 bg-transparent text-3xl outline-none placeholder:text-muted-foreground sm:text-5xl"
               />
               <button type="submit" className={btnPrimary()}>
-                Search
+                {t("story.searchDialog.button")}
               </button>
             </form>
           </Container>

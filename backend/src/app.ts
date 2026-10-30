@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import pinoHttp from 'pino-http';
+import { pinoHttp } from 'pino-http';
 import { randomUUID } from 'node:crypto';
 import { env, isTest } from './config/env.js';
 import { logger } from './utils/logger.js';
@@ -34,7 +34,7 @@ export function buildApp(): Express {
     app.use(
         pinoHttp({
             logger,
-            genReqId: (req) => req.id,
+            genReqId: (req) => (req as unknown as Request & { id: string }).id,
             autoLogging: !isTest,
             customLogLevel: (_req, res, err) => {
                 if (err || res.statusCode >= 500) return 'error';

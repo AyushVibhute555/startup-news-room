@@ -1,0 +1,185 @@
+{
+    "nav": {
+        "home": "Home",
+        "all": "All",
+        "archive": "Archive",
+        "about": "About",
+        "contact": "Contact",
+        "advertise": "Advertise"
+    },
+    "header": {
+        "search": "Search",
+        "searchPlaceholder": "Search news…",
+        "changeLanguage": "Change language",
+        "live": "Live",
+        "subscribe": "Subscribe",
+        "openMenu": "Open menu",
+        "closeMenu": "Close menu",
+        "skipToContent": "Skip to content",
+        "menuLabel": "Menu",
+        "menuDescription": "Browse categories and settings"
+    },
+    "footer": {
+        "rights": "All rights reserved.",
+        "privacy": "Privacy",
+        "terms": "Terms",
+        "categories": "Categories",
+        "company": "Company",
+        "legal": "Legal",
+        "tagline": "Daily startup headlines, summarised and linked to the original source.",
+        "followLinkedIn": "Follow on LinkedIn",
+        "copyright": "© 2026 Startup News Room"
+    },
+    "categories": {
+        "funding": "Funding",
+        "launches": "Launches",
+        "ai": "AI",
+        "fintech": "Fintech",
+        "saas": "SaaS",
+        "founders": "Founders",
+        "markets": "Markets",
+        "policy": "Policy"
+    },
+    "home": {
+        "topStories": "Top stories",
+        "latestNews": "Latest news",
+        "trending": "Trending",
+        "latestUpdates": "Latest updates",
+        "viewAll": "View all",
+        "seeAll": "See all",
+        "topNews": "Top news",
+        "moreIn": "More in {{category}}"
+    },
+    "story": {
+        "minRead": "{{count}} min read",
+        "relatedStories": "Related stories",
+        "readFullAt": "Read full story at {{source}}",
+        "share": "Share",
+        "copyLink": "Copy link",
+        "linkCopied": "Link copied",
+        "back": "Back",
+        "breadcrumbHome": "Home",
+        "imageCredit": "Illustrative image for this story.",
+        "source": "Source",
+        "opensInNewTab": "(opens in new tab)",
+        "shareOn": "Share on {{network}}",
+        "searchDialog": {
+            "title": "Search the newsroom",
+            "description": "Type a keyword and press enter to search stories.",
+            "inputPlaceholder": "Funding, AI, a company...",
+            "button": "Search",
+            "close": "Close search",
+            "inputLabel": "Search stories"
+        }
+    },
+    "category": {
+        "eyebrow": "Category",
+        "noStories": "No stories yet",
+        "noStoriesBody": "Check back soon for the latest in this category.",
+        "notFound": "This category doesn't exist."
+    },
+    "archive": {
+        "eyebrow": "Daily history",
+        "title": "Archive",
+        "subtitle": "Every headline we have published, day by day."
+    },
+    "search": {
+        "eyebrow": "Search",
+        "placeholder": "Search the newsroom",
+        "results_one": "{{count}} result",
+        "results_other": "{{count}} results",
+        "noResults": "No stories found",
+        "noResultsBody": "Nothing matched \"{{query}}\". Try a broader term or browse the latest headlines."
+    },
+    "newsletter": {
+        "eyebrow": "Daily newsletter",
+        "title": "The day's startup news, delivered to your inbox.",
+        "placeholder": "you@company.com",
+        "button": "Subscribe",
+        "subscribing": "Subscribing…",
+        "success": "You're subscribed. Look out for tomorrow's briefing.",
+        "error": "Could not subscribe. Please try again.",
+        "disclaimer": "One email a day. Unsubscribe any time."
+    },
+    "contact": {
+        "eyebrow": "Contact",
+        "title": "Get in touch",
+        "subtitle": "Questions, corrections or feedback. We read everything.",
+        "name": "Name",
+        "email": "Email",
+        "subject": "Subject",
+        "message": "Message",
+        "send": "Send message",
+        "sending": "Sending…",
+        "success": "Thanks, your message has been sent.",
+        "error": "Could not send your message. Please try again.",
+        "tipTitle": "Submit a story or tip",
+        "tipBody": "Raising a round, launching a product or know something we should cover? Send us the details and a link."
+    },
+    "common": {
+        "loading": "Loading…",
+        "loadMore": "Load more",
+        "previous": "Previous",
+        "next": "Next",
+        "cancel": "Cancel",
+        "retry": "Retry"
+    },
+    "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "notFound": "Page not found",
+        "notFoundBody": "The page you're looking for doesn't exist.",
+        "storyNotFound": "Story not found",
+        "storyNotFoundBody": "This story doesn't exist or has been removed.",
+        "backHome": "Back to headlines"
+    },
+    "time": {
+        "justNow": "Just now",
+        "minutesAgo": "{{count}}m ago",
+        "hoursAgo": "{{count}}h ago",
+        "yesterday": "Yesterday",
+        "daysAgo": "{{count}}d ago"
+    },
+    "info": {
+        "about": {
+            "eyebrow": "About",
+            "title": "The startup story, every day.",
+            "subtitle": "Startup News Room is a daily digest of the headlines that matter to founders, operators and investors.",
+            "missionTitle": "Our mission",
+            "missionBody": "We save you time. Every day we read across publications, pick the stories worth knowing and summarise each in a few sentences, always linking to the original reporting.",
+            "coverTitle": "What we cover",
+            "coverItem1": "Funding rounds and investor activity",
+            "coverItem2": "Product launches and new companies",
+            "coverItem3": "AI, fintech and SaaS businesses",
+            "coverItem4": "Founders, markets and policy",
+            "pickTitle": "How we pick stories",
+            "pickBody": "Editors prioritise significance over noise: news that changes a market, a sector or how companies are built. We avoid press-release rewrites and unverified rumours.",
+            "standardsTitle": "Editorial standards",
+            "standardsBody": "Every summary credits its source and links to it. We correct errors quickly and transparently, and advertising never influences what we publish."
+        },
+        "contact": {
+            "tipTitle": "Submit a story or tip",
+            "tipBody": "Raising a round, launching a product or know something we should cover? Send us the details and a link. We never publish a tip without verifying it.",
+            "tipHintPrefix": "Use the form and start your subject with",
+            "tipHintSuffix": "so it reaches the editors directly."
+        },
+        "advertise": {
+            "eyebrow": "Partnerships",
+            "title": "Advertise with us",
+            "subtitle": "Reach the people building the next generation of companies, in a calm, uncluttered setting.",
+            "audienceTitle": "Audience",
+            "audienceBody": "Founders, operators, investors and early employees who read the day's startup news every morning.",
+            "formatsTitle": "Formats",
+            "formatsBody": "Newsletter sponsorships, a single native placement on the home page, and sponsored briefings on a chosen theme.",
+            "principlesTitle": "Principles",
+            "principlesBody": "Every partnership is clearly labelled. Sponsors never influence editorial selection or summaries.",
+            "contactCta": "Contact partnerships",
+            "aboutCta": "About the newsroom"
+        },
+        "legal": {
+            "eyebrow": "Legal",
+            "lastUpdated": "Last updated: 1 October 2026. Placeholder text for review by counsel.",
+            "privacyTitle": "Privacy Policy",
+            "termsTitle": "Terms of Use"
+        }
+    }
+}

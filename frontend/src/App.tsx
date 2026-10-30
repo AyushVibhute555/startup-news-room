@@ -1,3 +1,4 @@
+// src/App.tsx
 import { Routes, Route, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -7,9 +8,15 @@ import { AboutPage, ContactPage, AdvertisePage, PrivacyPage, TermsPage } from "@
 import { ArchivePage, CategoryPage, SearchPage } from "@/pages/ListingPages";
 import { StoryPageWrapper } from "@/pages/StoryPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { AdminRoot } from "@/admin/AdminRoot";
 
 export function App() {
   const location = useLocation();
+
+  // Admin has its own shell — no site header, footer, transitions or smooth scroll.
+  if (location.pathname.startsWith("/admin")) {
+    return <AdminRoot />;
+  }
 
   return (
     <>

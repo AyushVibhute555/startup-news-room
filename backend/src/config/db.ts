@@ -2,7 +2,12 @@ import mongoose from 'mongoose';
 import { env } from './env.js';
 import { logger } from '../utils/logger.js';
 
-const STATE_NAMES = ['disconnected', 'connected', 'connecting', 'disconnecting'] as const;
+const STATE_NAMES: Record<number, string> = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting',
+};
 
 export function dbState(): string {
     return STATE_NAMES[mongoose.connection.readyState] ?? 'unknown';

@@ -17,10 +17,7 @@ const storySchema = new Schema(
         tags: {
             type: [String],
             default: [],
-            validate: [
-                (v: string[]) => v.length <= 8,
-                'A story may have at most 8 tags',
-            ],
+            validate: [(v: string[]) => v.length <= 8, 'A story may have at most 8 tags'],
         },
         status: { type: String, enum: ['draft', 'published'], default: 'draft' },
         publishedAt: { type: Date, default: () => new Date() },
@@ -41,8 +38,7 @@ const storySchema = new Schema(
     },
 );
 
-// ── Indexes ──────────────────────────────────────────────────────────────
-storySchema.index({ slug: 1 }, { unique: true });
+// Indexes — NO explicit { slug: 1, unique: true }; the field's unique:true covers it.
 storySchema.index({ status: 1, publishedAt: -1 });
 storySchema.index({ category: 1, status: 1, publishedAt: -1 });
 storySchema.index({ isFeatured: 1 });
@@ -52,9 +48,7 @@ storySchema.index(
     { weights: { title: 10, tags: 5, summary: 2 }, name: 'story_text' },
 );
 
-// ── Hooks ────────────────────────────────────────────────────────────────
-
-// Sanitize + compute readTime + generate slug (creation only).
+// Hooks
 storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) {
     if (typeof this.title === 'string') this.title = stripHtml(this.title);
     if (typeof this.summary === 'string') this.summary = stripHtml(this.summary);
@@ -71,7 +65,6 @@ storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) 
     const words = text.split(/\s+/).filter(Boolean).length;
     this.readTime = Math.max(1, Math.ceil(words / 200));
 
-    // Slug is generated once and never changed afterwards.
     if (this.isNew && !this.slug) {
         const base =
             slugify(this.title || 'story', { lower: true, strict: true, trim: true }) || 'story';
@@ -85,7 +78,6 @@ storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) 
     }
 });
 
-// Only one featured story at a time.
 storySchema.pre('save', async function (this: HydratedDocument<StoryAttrs>) {
     if (this.isFeatured) {
         await mongoose.model('Story').updateMany(
@@ -98,4 +90,7 @@ storySchema.pre('save', async function (this: HydratedDocument<StoryAttrs>) {
 export type StoryAttrs = InferSchemaType<typeof storySchema>;
 export type StoryDoc = HydratedDocument<StoryAttrs>;
 
-export const Story = mongoose.model('Story', storySchema);
+// ✅ Guarded — safe in tests, hot-reload, serverless.
+export const Story =
+    (mongoose.models.Story as mongoose.Model<StoryAttrs>) ||
+    mongoose.model<StoryAttrs>('Story', storySchema);

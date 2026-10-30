@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useInView } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { SectionHeader } from "@/components/SectionHeader";
 import { StoryCard } from "@/components/StoryCard";
 import { StoryRow } from "@/components/StoryRow";
@@ -13,6 +14,7 @@ interface CategoryBlockProps {
 }
 
 export function CategoryBlock({ category, layout }: CategoryBlockProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(containerRef, { margin: "400px", once: true });
 
@@ -40,18 +42,19 @@ export function CategoryBlock({ category, layout }: CategoryBlockProps) {
     };
   }, [category.slug, isInView]);
 
-  // Hide block if fetch returned nothing
+  const localizedName = t(`categories.${category.slug}`);
+
   if (stories && stories.length === 0) return null;
 
   return (
     <section
       ref={containerRef}
-      aria-label={category.name}
+      aria-label={localizedName}
       style={{ paddingTop: "var(--section-gap)" }}
     >
       <SectionHeader
-        title={category.name}
-        actionLabel={`More in ${category.name}`}
+        title={localizedName}
+        actionLabel={t("home.moreIn", { category: localizedName })}
         actionHref={`/category/${category.slug}`}
       />
 

@@ -56,7 +56,7 @@
   --muted-foreground: #5a605e;
   --border: #e3e5e4;
   --logo-grey: #dfe1e0;
-  --signal: #d4141c;
+  --signal: #00A3BE;
   --signal-strong: #b3141c;
   --signal-foreground: #ffffff;
   --inverse-bg: #101312;
@@ -87,16 +87,20 @@
   * {
     border-color: var(--color-border);
   }
+
   html {
     -webkit-text-size-adjust: 100%;
   }
+
   html.lenis,
   html.lenis body {
     height: auto;
   }
+
   .lenis.lenis-stopped {
     overflow: clip;
   }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -107,6 +111,7 @@
     overflow-x: clip;
     -webkit-font-smoothing: antialiased;
   }
+
   :focus-visible {
     outline: 2px solid var(--signal-strong, var(--signal));
     outline-offset: 2px;
@@ -135,7 +140,8 @@
 @utility section-y {
   padding-top: 64px;
   padding-bottom: 64px;
-  @media (width >= 1024px) {
+
+  @media (width >=1024px) {
     padding-top: 96px;
     padding-bottom: 96px;
   }
@@ -156,29 +162,35 @@
 }
 
 @keyframes live-pulse {
+
   0%,
   100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.35;
     transform: scale(0.85);
   }
 }
+
 .live-dot {
   animation: live-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes skeleton-pulse {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
 }
+
 .skeleton {
   background-color: var(--color-surface-alt);
   border-radius: 2px;
@@ -186,6 +198,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

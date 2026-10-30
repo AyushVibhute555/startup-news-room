@@ -1,21 +1,21 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { BreakingBar } from "@/components/BreakingBar";
 import { CategoryBlock } from "@/components/CategoryBlock";
 import { Container } from "@/components/Container";
-import { HighlightedText } from "@/components/HighlightedText";
 import { Newsletter } from "@/components/Newsletter";
 import { SectionHeader } from "@/components/SectionHeader";
+import { TranslatedText } from "@/components/TranslatedText";
+import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
 import {
-  CardSkeleton,
-  CarouselSkeleton,
   ErrorState,
   GridSkeleton,
   LeadSkeleton,
   RowSkeleton,
 } from "@/components/States";
-import { CategoryTag, SourceLink, StoryLink, StoryMeta } from "@/components/StoryBits";
+import { SourceLink, StoryLink, StoryMeta } from "@/components/StoryBits";
 import { StoryCard } from "@/components/StoryCard";
 import { StoryImage } from "@/components/StoryImage";
 import { StoryRow } from "@/components/StoryRow";
@@ -26,9 +26,8 @@ import { formatTimeShort } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
 import type { Story } from "@/types/story";
 
-/* ── Lead Story (staggered entrance animation on first load) ──────── */
-
 function LeadStory({ story }: { story: Story }) {
+  const { t } = useTranslation();
   const step = (i: number) => ({
     initial: { opacity: 0, y: 12 },
     animate: { opacity: 1, y: 0 },
@@ -43,23 +42,21 @@ function LeadStory({ story }: { story: Story }) {
           alt={story.title}
           ratio="16/9"
           priority
-          badge={story.isBreaking ? "Breaking" : undefined}
+          badge={story.isBreaking ? t("breaking") : undefined}
         />
       </motion.div>
 
       <motion.div {...step(1)} className="mt-4">
-        <CategoryTag
-          slug={story.category}
-          breaking={story.isBreaking}
-          className="text-muted-foreground"
-        />
+        <span className="font-label text-xs uppercase tracking-wide text-muted-foreground">
+          {t(`categories.${story.category}`)}
+        </span>
       </motion.div>
 
       <motion.div {...step(2)} className="mt-2.5">
         <h2 className="headline text-[clamp(1.75rem,3.2vw,2.75rem)] font-bold leading-[1.12] tracking-[-0.02em] text-foreground">
           <StoryLink story={story}>
             <span className="link-underline">
-              <HighlightedText text={story.title} />
+              <TranslatedHighlightedText text={story.title} />
             </span>
           </StoryLink>
         </h2>
@@ -67,7 +64,7 @@ function LeadStory({ story }: { story: Story }) {
 
       <motion.div {...step(3)} className="mt-3">
         <p className="line-clamp-2 max-w-[60ch] text-[1.0625rem] leading-[1.55] text-muted-foreground">
-          <HighlightedText text={story.summary} />
+          <TranslatedText text={story.summary} />
         </p>
       </motion.div>
 
@@ -82,13 +79,11 @@ function LeadStory({ story }: { story: Story }) {
   );
 }
 
-/* ── Trending List (5 rows with large red numerals) ──────────────── */
-
 function TrendingList({ stories }: { stories: Story[] }) {
-  // TODO: swap in a real views metric when backend is connected
+  const { t } = useTranslation();
   return (
-    <section aria-label="Trending stories">
-      <SectionHeader title="Trending" />
+    <section aria-label={t("home.trending")}>
+      <SectionHeader title={t("home.trending")} />
       <ol className="divide-y divide-border">
         {stories.map((story, idx) => (
           <li key={story._id} className="group relative flex items-center gap-4 py-3.5">
@@ -102,7 +97,7 @@ function TrendingList({ stories }: { stories: Story[] }) {
               <h3 className="headline line-clamp-2 text-[0.9375rem] font-[650] leading-[1.3] text-foreground">
                 <StoryLink story={story}>
                   <span className="link-underline">
-                    <HighlightedText text={story.title} />
+                    <TranslatedHighlightedText text={story.title} />
                   </span>
                 </StoryLink>
               </h3>
@@ -120,12 +115,15 @@ function TrendingList({ stories }: { stories: Story[] }) {
   );
 }
 
-/* ── Latest Updates Feed (6 rows with red time labels) ───────────── */
-
 function LatestUpdatesFeed({ stories }: { stories: Story[] }) {
+  const { t } = useTranslation();
   return (
-    <section aria-label="Latest updates">
-      <SectionHeader title="Latest updates" actionLabel="View all" actionHref="/archive" />
+    <section aria-label={t("home.latestUpdates")}>
+      <SectionHeader
+        title={t("home.latestUpdates")}
+        actionLabel={t("home.viewAll")}
+        actionHref="/archive"
+      />
       <ul className="divide-y divide-border">
         {stories.map((story) => (
           <li key={story._id} className="group relative flex items-baseline gap-3 py-3.5">
@@ -136,7 +134,7 @@ function LatestUpdatesFeed({ stories }: { stories: Story[] }) {
               <h3 className="headline line-clamp-2 text-[0.9375rem] font-normal leading-[1.35] text-foreground">
                 <StoryLink story={story}>
                   <span className="link-underline">
-                    <HighlightedText text={story.title} />
+                    <TranslatedHighlightedText text={story.title} />
                   </span>
                 </StoryLink>
               </h3>
@@ -148,60 +146,43 @@ function LatestUpdatesFeed({ stories }: { stories: Story[] }) {
   );
 }
 
-/* ── Main Home Page Component ────────────────────────────────────── */
-
 export function HomePage() {
+  const { t } = useTranslation();
   const breaking = useApi(getBreakingStories, []);
   const featured = useApi(getFeaturedStory, []);
   const top = useApi(getTopStories, []);
   const latest = useApi(() => getStories({ limit: 40 }), []);
 
-  // Build ONE ordered, deduplicated pool [featured, ...top, ...latest]
   const { pool, updates } = useMemo(() => {
     const allLatest = latest.data?.items ?? [];
     const map = new Map<string, Story>();
-
-    if (featured.data) {
-      map.set(featured.data._id, featured.data);
-    }
-    if (top.data) {
-      top.data.forEach((s) => {
-        if (!map.has(s._id)) map.set(s._id, s);
-      });
-    }
+    if (featured.data) map.set(featured.data._id, featured.data);
+    top.data?.forEach((s) => {
+      if (!map.has(s._id)) map.set(s._id, s);
+    });
     allLatest.forEach((s) => {
       if (!map.has(s._id)) map.set(s._id, s);
     });
-
     const fullPool = Array.from(map.values());
     const sortedUpdates = [...allLatest]
       .sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt))
       .slice(0, 6);
-
-    return {
-      pool: fullPool,
-      updates: sortedUpdates,
-    };
+    return { pool: fullPool, updates: sortedUpdates };
   }, [featured.data, top.data, latest.data]);
 
-  // Pool allocations: lead 1, top-stories rows 4, carousel 12, latest grid 12, trending 5
   const leadStory = pool[0];
   const topStoriesRows = pool.slice(1, 5);
   const carouselStories = pool.slice(5, 17);
   const latestGridStories = pool.slice(17, 29);
   const trendingStories = pool.slice(29, 34);
-
-  // First 4 categories for topic blocks
   const topicCategories = categories.slice(0, 4);
 
   return (
     <>
-      <h1 className="sr-only">Startup News Room: today's startup news</h1>
+      <h1 className="sr-only">{t("nav.home")}: {t("home.latestNews")}</h1>
 
-      {/* 1. Breaking Bar (renders only when breaking stories exist) */}
       <BreakingBar stories={breaking.data} />
 
-      {/* 2. Top News Carousel (directly under header / breaking bar) */}
       <TopNewsCarousel stories={carouselStories.length > 0 ? carouselStories : undefined} />
 
       <Container>
@@ -210,14 +191,13 @@ export function HomePage() {
             <ErrorState onRetry={latest.retry} />
           </div>
         ) : latest.loading && pool.length === 0 ? (
-          /* Skeletons on initial data load */
           <div className="py-8 space-y-12">
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               <div className="lg:col-span-8">
                 <LeadSkeleton />
               </div>
               <div className="space-y-4 lg:col-span-4">
-                <SectionHeader title="Top stories" />
+                <SectionHeader title={t("home.topStories")} />
                 {Array.from({ length: 4 }).map((_, i) => (
                   <RowSkeleton key={i} />
                 ))}
@@ -227,9 +207,8 @@ export function HomePage() {
           </div>
         ) : (
           <>
-            {/* 3. Front Page: Lead story (cols 1-8) + Top stories stack (cols 9-12) */}
             <section
-              aria-label="Front page"
+              aria-label={t("home.topStories")}
               style={{ paddingTop: "clamp(24px, 3vw, 40px)" }}
               className="border-b border-border pb-12"
             >
@@ -240,7 +219,7 @@ export function HomePage() {
                   </div>
                 )}
                 <div className="flex flex-col lg:col-span-4">
-                  <SectionHeader title="Top stories" />
+                  <SectionHeader title={t("home.topStories")} />
                   <div className="flex flex-col">
                     {topStoriesRows.map((s) => (
                       <StoryRow key={s._id} story={s} />
@@ -250,22 +229,20 @@ export function HomePage() {
               </div>
             </section>
 
-            {/* 4. Latest News Grid (12 uniform StoryCards) */}
             <section
-              aria-label="Latest news"
+              aria-label={t("home.latestNews")}
               style={{ paddingTop: "var(--section-gap)" }}
               className="border-b border-border pb-12"
             >
               <div className="mb-6 flex flex-wrap items-baseline justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <SectionHeader title="Latest news" className="mb-0" />
-                  <span className="text-xs text-muted-foreground">Updated 4 min ago</span>
+                  <SectionHeader title={t("home.latestNews")} className="mb-0" />
                 </div>
                 <Link
                   to="/archive"
                   className="text-sm font-semibold text-muted-foreground transition-colors duration-200 hover:text-signal"
                 >
-                  View all headlines
+                  {t("home.viewAll")}
                 </Link>
               </div>
 
@@ -276,9 +253,8 @@ export function HomePage() {
               </div>
             </section>
 
-            {/* 5. Trending + Latest Updates (two columns on lg, hairline between) */}
             <section
-              aria-label="Trending and updates"
+              aria-label={`${t("home.trending")} & ${t("home.latestUpdates")}`}
               style={{ paddingTop: "var(--section-gap)" }}
               className="border-b border-border pb-12"
             >
@@ -292,7 +268,6 @@ export function HomePage() {
               </div>
             </section>
 
-            {/* 6. Topic Blocks (first 4 categories, alternating Layout A and Layout B) */}
             <div className="space-y-6">
               {topicCategories.map((cat, idx) => (
                 <CategoryBlock key={cat.slug} category={cat} layout={idx % 2 === 0 ? "A" : "B"} />
@@ -302,7 +277,6 @@ export function HomePage() {
         )}
       </Container>
 
-      {/* 7. Newsletter (full-bleed inverse band) */}
       <Newsletter />
     </>
   );

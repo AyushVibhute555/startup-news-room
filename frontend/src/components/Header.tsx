@@ -3,12 +3,14 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { Linkedin, Menu, Search, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 import { Container } from "@/components/Container";
 import { SearchOverlay } from "@/components/SearchOverlay";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { categories } from "@/data/categories";
 import { formatLongDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export const LINKEDIN_URL = "https://www.linkedin.com/company/startup-news-room/";
 
@@ -23,10 +25,11 @@ export const HEADER_VARS: CSSProperties = {
   color: INK,
 };
 
-const NAV = [{ slug: "", name: "All" }, ...categories.map((c) => ({ slug: c.slug, name: c.name }))];
+const NAV = [{ slug: "" }, ...categories.map((c) => ({ slug: c.slug }))];
 
 /* ── Utility Bar ─────────────────────────────────────────────────── */
 function UtilityBar() {
+  const { t } = useTranslation();
   const [date, setDate] = useState("");
   useEffect(() => setDate(formatLongDate(new Date())), []);
 
@@ -42,7 +45,7 @@ function UtilityBar() {
           </span>
           <span className="font-label flex shrink-0 items-center gap-1.5 text-xs text-[#101312]">
             <span className="live-dot h-2 w-2 rounded-full bg-signal" aria-hidden />
-            Live
+            {t("header.live")}
           </span>
         </div>
         <a
@@ -67,28 +70,29 @@ function useActiveSlug() {
 
 function NavLink({
   slug,
-  name,
   className,
   onClick,
 }: {
   slug: string;
-  name: string;
   className?: string;
   onClick?: () => void;
 }) {
+  const { t } = useTranslation();
+  const label = slug ? t(`categories.${slug}`) : t("nav.all");
   return slug ? (
     <Link to={`/category/${slug}`} className={className} onClick={onClick}>
-      {name}
+      {label}
     </Link>
   ) : (
     <Link to="/" className={className} onClick={onClick}>
-      {name}
+      {label}
     </Link>
   );
 }
 
 /* ── Sticky Header with Scroll Compaction ────────────────────────── */
 export function Header() {
+  const { t } = useTranslation();
   const active = useActiveSlug();
   const reduce = useReducedMotion();
   const { scrollY, scrollYProgress } = useScroll();
@@ -100,15 +104,11 @@ export function Header() {
   const menuOpenRef = useRef(menuOpen);
   menuOpenRef.current = menuOpen;
 
-  // Reading progress line opacity (fades in after 8px scroll)
   const progressOpacity = useTransform(scrollY, [0, 8], [0, 1]);
-
-  // Scroll compaction motion value p: 0 to 1 over first 140px
   const rawP = useTransform(scrollY, [0, 140], [0, 1], { clamp: true });
   const smoothP = useSpring(rawP, { stiffness: 220, damping: 30, mass: 0.5 });
   const p = reduce ? rawP : smoothP;
 
-  // Unconditional transforms for smooth animation
   const animatedBarHeight = useTransform(p, [0, 1], [72, 64]);
   const animatedHairline = useTransform(
     p,
@@ -118,7 +118,6 @@ export function Header() {
   const animatedShadow = useTransform(p, [0, 1], [0, 1]);
   const animatedLogoScale = useTransform(p, [0, 1], [1, 0.92]);
 
-  // Reduced motion fallbacks (snap values at 8px scroll, no compaction)
   const reducedHairline = useTransform(scrollY, (y) =>
     y > 8 ? "rgba(16, 19, 18, 0.14)" : "rgba(16, 19, 18, 0.08)",
   );
@@ -129,7 +128,6 @@ export function Header() {
   const shadowOpacity = reduce ? reducedShadow : animatedShadow;
   const logoScale = reduce ? 1 : animatedLogoScale;
 
-  // Hide on scroll down past 160px; reveal on upward scroll or focus-within
   useEffect(() => {
     if (reduce) return;
     return scrollY.on("change", (y) => {
@@ -139,7 +137,6 @@ export function Header() {
       }
       const delta = y - lastY.current;
       if (Math.abs(delta) < 6) return;
-
       if (delta > 0 && y > 160) {
         setHidden(true);
       } else if (delta < 0) {
@@ -155,10 +152,9 @@ export function Header() {
         href="#main"
         className="sr-only z-[70] bg-[#101312] px-4 py-3 text-[#F2F4F3] focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
       >
-        Skip to content
+        {t("header.skipToContent")}
       </a>
 
-      {/* 2px red reading-progress line fixed at top of viewport */}
       <motion.div
         aria-hidden
         className="pointer-events-none fixed left-0 right-0 top-0 z-[45] h-[2px] bg-signal"
@@ -186,7 +182,6 @@ export function Header() {
           className="relative pointer-events-auto border-b"
         >
           <Container className="flex h-full items-center justify-between gap-4">
-            {/* Logo with scale animation */}
             <Link
               to="/"
               aria-label="Startup News Room, home"
@@ -207,14 +202,12 @@ export function Header() {
               </motion.div>
             </Link>
 
-            {/* Desktop Navigation */}
-            <nav aria-label="Categories" className="hidden h-full lg:block">
+            <nav aria-label={t("footer.categories")} className="hidden h-full lg:block">
               <ul className="flex h-full items-center gap-1">
                 {NAV.map((n) => (
                   <li key={n.slug} className="relative h-full flex items-center">
                     <NavLink
                       slug={n.slug}
-                      name={n.name}
                       className={cn(
                         "font-label flex h-full items-center px-3 text-[0.875rem] font-semibold transition-colors duration-300 ease-out",
                         active === n.slug ? "text-[#101312]" : "text-[#565C5A] hover:text-signal",
@@ -232,11 +225,12 @@ export function Header() {
               </ul>
             </nav>
 
-            {/* Header Right Actions */}
             <div className="flex shrink-0 items-center gap-1.5">
+              <LanguageSwitcher className="text-[#101312] hover:bg-black/5" />
+
               <button
                 type="button"
-                aria-label="Search"
+                aria-label={t("header.search")}
                 onClick={() => setSearchOpen(true)}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#101312] transition-colors duration-200 hover:bg-black/5 hover:text-signal"
               >
@@ -249,13 +243,12 @@ export function Header() {
                 href="#newsletter"
                 className="ml-2 hidden lg:inline-flex min-h-[38px] items-center justify-center rounded-[4px] bg-[#101312] px-4 text-xs font-semibold text-[#F2F4F3] transition-colors duration-200 hover:bg-signal hover:text-white"
               >
-                Subscribe
+                {t("header.subscribe")}
               </a>
 
-              {/* Mobile Drawer */}
               <Dialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
                 <Dialog.Trigger
-                  aria-label="Open menu"
+                  aria-label={t("header.openMenu")}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#101312] transition-colors duration-200 hover:bg-black/5 lg:hidden"
                 >
                   <Menu className="h-5 w-5" />
@@ -274,25 +267,24 @@ export function Header() {
                         className="h-8 w-auto object-contain mix-blend-darken"
                       />
                       <Dialog.Close
-                        aria-label="Close menu"
+                        aria-label={t("header.closeMenu")}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#101312] transition-colors hover:bg-black/5"
                       >
                         <X className="h-5 w-5" />
                       </Dialog.Close>
                     </div>
 
-                    <Dialog.Title className="sr-only">Menu</Dialog.Title>
+                    <Dialog.Title className="sr-only">{t("header.menuLabel")}</Dialog.Title>
                     <Dialog.Description className="sr-only">
-                      Browse categories and settings
+                      {t("header.menuDescription")}
                     </Dialog.Description>
 
-                    <nav aria-label="Mobile categories" className="mt-6">
+                    <nav aria-label={t("footer.categories")} className="mt-6">
                       <ul className="divide-y divide-[rgba(16,19,18,0.1)] border-y border-[rgba(16,19,18,0.1)]">
                         {NAV.map((n) => (
                           <li key={n.slug}>
                             <NavLink
                               slug={n.slug}
-                              name={n.name}
                               onClick={() => setMenuOpen(false)}
                               className={cn(
                                 "font-label flex min-h-[52px] items-center text-2xl font-bold transition-colors duration-200 hover:text-signal",
@@ -311,7 +303,7 @@ export function Header() {
                         onClick={() => setMenuOpen(false)}
                         className="inline-flex min-h-[44px] items-center justify-center rounded-[4px] bg-[#101312] px-5 text-sm font-semibold text-[#F2F4F3] transition-colors duration-200 hover:bg-signal hover:text-white"
                       >
-                        Subscribe
+                        {t("header.subscribe")}
                       </a>
                     </div>
                   </Dialog.Content>
@@ -320,7 +312,6 @@ export function Header() {
             </div>
           </Container>
 
-          {/* 24px soft gradient shadow strip */}
           <motion.div
             aria-hidden
             className="pointer-events-none absolute left-0 right-0 top-full h-6"
