@@ -31,13 +31,14 @@ i18n
         supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
         interpolation: { escapeValue: false },
         detection: {
-            order: ["localStorage", "navigator"],
-            caches: ["localStorage"],
+            // 👇 Look at the URL first, then localStorage, then browser settings
+            order: ["querystring", "localStorage", "navigator"],
+            lookupQuerystring: "lang", // This defines the ?lang= parameter
+            caches: ["localStorage"],  // Still save it so it remembers next time
             lookupLocalStorage: "snr_language",
         },
     });
 
-// Keep <html lang="…"> in sync for accessibility and SEO.
 function applyHtmlLang(lng: string) {
     if (typeof document !== "undefined") {
         document.documentElement.lang = lng;

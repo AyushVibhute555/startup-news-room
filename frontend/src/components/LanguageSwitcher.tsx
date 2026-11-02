@@ -49,7 +49,22 @@ export function LanguageSwitcher({ className }: { className?: string }) {
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        // 1. Change the language
                                         void i18n.changeLanguage(lang.code);
+
+                                        // 2. Update the URL so it can be copied and shared
+                                        const url = new URL(window.location.href);
+                                        if (lang.code === "en") {
+                                            // Keep English URLs clean by removing the ?lang= param
+                                            url.searchParams.delete("lang");
+                                        } else {
+                                            // Add ?lang=kn, ?lang=hi, etc.
+                                            url.searchParams.set("lang", lang.code);
+                                        }
+                                        // replaceState updates the URL without reloading the page
+                                        window.history.replaceState({}, "", url.toString());
+
+                                        // 3. Close the dropdown
                                         setOpen(false);
                                     }}
                                     className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
@@ -64,4 +79,4 @@ export function LanguageSwitcher({ className }: { className?: string }) {
             )}
         </div>
     );
-}
+}   
