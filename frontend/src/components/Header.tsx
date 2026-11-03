@@ -1,7 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
-import { Linkedin, Menu, Search, X } from "lucide-react";
+import { Linkedin, Instagram, Youtube, Menu, Search, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Container } from "@/components/Container";
@@ -13,8 +13,9 @@ import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export const LINKEDIN_URL = "https://www.linkedin.com/company/startup-news-room/";
+export const INSTAGRAM_URL = "https://www.instagram.com/startupnewsroom";
+export const YOUTUBE_URL = "https://www.youtube.com/@StartUpNewsRoom/";
 
-// ── Surface constants ──────────────────────────────────────────────
 export const LOGO_COLOR = "#DFE1E0";
 export const REST_COLOR = LOGO_COLOR;
 export const INK = "#101312";
@@ -25,37 +26,34 @@ export const HEADER_VARS: CSSProperties = {
   color: INK,
 };
 
-const NAV = [{ slug: "" }, ...categories.map((c) => ({ slug: c.slug }))];
+// Added Funding Tracker to NAV
+const NAV = [
+  { slug: "", label: "All" },
+  ...categories.map((c) => ({ slug: c.slug, label: c.name })),
+  { slug: "/funding", label: "Funding Tracker", isCustom: true }
+];
 
-/* ── Utility Bar ─────────────────────────────────────────────────── */
+const REGIONS = ["Karnataka", "India", "Global"];
+
 function UtilityBar() {
   const { t } = useTranslation();
   const [date, setDate] = useState("");
   useEffect(() => setDate(formatLongDate(new Date())), []);
 
   return (
-    <div
-      style={HEADER_VARS}
-      className="border-b border-[rgba(16,19,18,0.08)] text-[0.8125rem] select-none"
-    >
+    <div style={HEADER_VARS} className="border-b border-[rgba(16,19,18,0.08)] text-[0.8125rem] select-none">
       <Container className="flex h-9 items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
-          <span className="truncate text-[#565C5A]" suppressHydrationWarning>
-            {date || "\u00a0"}
-          </span>
+          <span className="truncate text-[#565C5A]" suppressHydrationWarning>{date || "\u00a0"}</span>
           <span className="font-label flex shrink-0 items-center gap-1.5 text-xs text-[#101312]">
-            <span className="live-dot h-2 w-2 rounded-full bg-signal" aria-hidden />
-            {t("header.live")}
+            <span className="live-dot h-2 w-2 rounded-full bg-signal" aria-hidden />{t("header.live")}
           </span>
         </div>
-        <a
-          href={LINKEDIN_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hidden items-center gap-1.5 text-[#565C5A] transition-colors duration-200 hover:text-signal min-[420px]:inline-flex"
-        >
-          <Linkedin className="h-3.5 w-3.5" aria-hidden /> LinkedIn
-        </a>
+        <div className="flex items-center gap-4">
+          <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="hidden items-center gap-1.5 text-[#565C5A] transition-colors duration-200 hover:text-signal min-[520px]:inline-flex"><Linkedin className="h-3.5 w-3.5" aria-hidden /> LinkedIn</a>
+          <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hidden items-center gap-1.5 text-[#565C5A] transition-colors duration-200 hover:text-signal min-[520px]:inline-flex"><Instagram className="h-3.5 w-3.5" aria-hidden /> Instagram</a>
+          <a href={YOUTUBE_URL} target="_blank" rel="noopener noreferrer" className="hidden items-center gap-1.5 text-[#565C5A] transition-colors duration-200 hover:text-signal min-[520px]:inline-flex"><Youtube className="h-3.5 w-3.5" aria-hidden /> YouTube</a>
+        </div>
       </Container>
     </div>
   );
@@ -64,38 +62,27 @@ function UtilityBar() {
 function useActiveSlug() {
   const { pathname } = useLocation();
   if (pathname === "/") return "";
+  if (pathname === "/funding") return "/funding";
   const m = pathname.match(/^\/category\/([^/]+)/);
   return m ? m[1] : null;
 }
 
-function NavLink({
-  slug,
-  className,
-  onClick,
-}: {
-  slug: string;
-  className?: string;
-  onClick?: () => void;
-}) {
+function NavLink({ item, className, onClick }: { item: { slug: string, label: string, isCustom?: boolean }; className?: string; onClick?: () => void; }) {
   const { t } = useTranslation();
-  const label = slug ? t(`categories.${slug}`) : t("nav.all");
-  return slug ? (
-    <Link to={`/category/${slug}`} className={className} onClick={onClick}>
-      {label}
-    </Link>
-  ) : (
-    <Link to="/" className={className} onClick={onClick}>
-      {label}
-    </Link>
-  );
+  const label = item.slug && !item.isCustom ? t(`categories.${item.slug}`) : item.label;
+  const to = item.isCustom ? item.slug : (item.slug ? `/category/${item.slug}` : "/");
+
+  return <Link to={to} className={className} onClick={onClick}>{label}</Link>;
 }
 
-/* ── Sticky Header with Scroll Compaction ────────────────────────── */
 export function Header() {
   const { t } = useTranslation();
   const active = useActiveSlug();
   const reduce = useReducedMotion();
   const { scrollY, scrollYProgress } = useScroll();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const currentRegion = searchParams.get("region") || "";
 
   const [hidden, setHidden] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -110,17 +97,11 @@ export function Header() {
   const p = reduce ? rawP : smoothP;
 
   const animatedBarHeight = useTransform(p, [0, 1], [72, 64]);
-  const animatedHairline = useTransform(
-    p,
-    [0, 1],
-    ["rgba(16, 19, 18, 0.08)", "rgba(16, 19, 18, 0.14)"],
-  );
+  const animatedHairline = useTransform(p, [0, 1], ["rgba(16, 19, 18, 0.08)", "rgba(16, 19, 18, 0.14)"]);
   const animatedShadow = useTransform(p, [0, 1], [0, 1]);
   const animatedLogoScale = useTransform(p, [0, 1], [1, 0.92]);
 
-  const reducedHairline = useTransform(scrollY, (y) =>
-    y > 8 ? "rgba(16, 19, 18, 0.14)" : "rgba(16, 19, 18, 0.08)",
-  );
+  const reducedHairline = useTransform(scrollY, (y) => y > 8 ? "rgba(16, 19, 18, 0.14)" : "rgba(16, 19, 18, 0.08)");
   const reducedShadow = useTransform(scrollY, (y) => (y > 8 ? 1 : 0));
 
   const barHeight = reduce ? 72 : animatedBarHeight;
@@ -131,95 +112,44 @@ export function Header() {
   useEffect(() => {
     if (reduce) return;
     return scrollY.on("change", (y) => {
-      if (menuOpenRef.current) {
-        setHidden(false);
-        return;
-      }
+      if (menuOpenRef.current) { setHidden(false); return; }
       const delta = y - lastY.current;
       if (Math.abs(delta) < 6) return;
-      if (delta > 0 && y > 160) {
-        setHidden(true);
-      } else if (delta < 0) {
-        setHidden(false);
-      }
+      if (delta > 0 && y > 160) { setHidden(true); } else if (delta < 0) { setHidden(false); }
       lastY.current = y;
     });
   }, [scrollY, reduce]);
 
+  function handleRegionChange(region: string) {
+    const newParams = new URLSearchParams(searchParams);
+    if (region === "") newParams.delete("region");
+    else newParams.set("region", region);
+    setSearchParams(newParams);
+  }
+
   return (
     <>
-      <a
-        href="#main"
-        className="sr-only z-[70] bg-[#101312] px-4 py-3 text-[#F2F4F3] focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
-      >
+      <a href="#main" className="sr-only z-[70] bg-[#101312] px-4 py-3 text-[#F2F4F3] focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
         {t("header.skipToContent")}
       </a>
-
-      <motion.div
-        aria-hidden
-        className="pointer-events-none fixed left-0 right-0 top-0 z-[45] h-[2px] bg-signal"
-        style={{
-          scaleX: scrollYProgress,
-          transformOrigin: "left",
-          opacity: progressOpacity,
-        }}
-      />
-
+      <motion.div aria-hidden className="pointer-events-none fixed left-0 right-0 top-0 z-[45] h-[2px] bg-signal" style={{ scaleX: scrollYProgress, transformOrigin: "left", opacity: progressOpacity }} />
       <UtilityBar />
 
-      <motion.header
-        className="sticky top-0 z-40 h-[72px] pointer-events-none focus-within:!translate-y-0"
-        animate={{ y: hidden && !menuOpen && !reduce ? -110 : 0 }}
-        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-        onFocus={() => setHidden(false)}
-      >
-        <motion.div
-          style={{
-            ...HEADER_VARS,
-            height: barHeight,
-            borderBottomColor: hairlineAlpha,
-          }}
-          className="relative pointer-events-auto border-b"
-        >
+      <motion.header className="sticky top-0 z-40 pointer-events-none focus-within:!translate-y-0" animate={{ y: hidden && !menuOpen && !reduce ? -110 : 0 }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} onFocus={() => setHidden(false)}>
+        <motion.div style={{ ...HEADER_VARS, height: barHeight, borderBottomColor: hairlineAlpha }} className="relative pointer-events-auto border-b">
           <Container className="flex h-full items-center justify-between gap-4">
-            <Link
-              to="/"
-              aria-label="Startup News Room, home"
-              className="flex min-w-0 items-center gap-3"
-            >
-              <motion.div
-                style={{ scale: logoScale, transformOrigin: "left center" }}
-                className="flex items-center gap-3"
-              >
-                <img
-                  src="/startup_news_room_logo.jpg"
-                  alt="Startup News Room Logo"
-                  className="h-9 w-auto object-contain mix-blend-darken"
-                />
-                <span className="font-label hidden text-lg leading-none sm:inline xl:hidden 2xl:inline text-[#101312]">
-                  Startup News Room
-                </span>
+            <Link to="/" aria-label="Startup News Room, home" className="flex min-w-0 items-center gap-3">
+              <motion.div style={{ scale: logoScale, transformOrigin: "left center" }} className="flex items-center gap-3">
+                <img src="/startup_news_room_logo.jpg" alt="Startup News Room Logo" className="h-9 w-auto object-contain mix-blend-darken" />
               </motion.div>
             </Link>
 
             <nav aria-label={t("footer.categories")} className="hidden h-full lg:block">
               <ul className="flex h-full items-center gap-1">
                 {NAV.map((n) => (
-                  <li key={n.slug} className="relative h-full flex items-center">
-                    <NavLink
-                      slug={n.slug}
-                      className={cn(
-                        "font-label flex h-full items-center px-3 text-[0.875rem] font-semibold transition-colors duration-300 ease-out",
-                        active === n.slug ? "text-[#101312]" : "text-[#565C5A] hover:text-signal",
-                      )}
-                    />
-                    {active === n.slug && (
-                      <motion.span
-                        layoutId="nav-underline"
-                        className="absolute inset-x-2 bottom-0 h-0.5 bg-signal"
-                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                      />
-                    )}
+                  <li key={n.slug || "all"} className="relative h-full flex items-center">
+                    <NavLink item={n} className={cn("font-label flex h-full items-center px-3 text-[0.875rem] font-semibold transition-colors duration-300 ease-out", active === n.slug ? "text-[#101312]" : "text-[#565C5A] hover:text-signal")} />
+                    {active === n.slug && <motion.span layoutId="nav-underline" className="absolute inset-x-2 bottom-0 h-0.5 bg-signal" transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} />}
                   </li>
                 ))}
               </ul>
@@ -227,82 +157,41 @@ export function Header() {
 
             <div className="flex shrink-0 items-center gap-1.5">
               <LanguageSwitcher className="text-[#101312] hover:bg-black/5" />
-
-              <button
-                type="button"
-                aria-label={t("header.search")}
-                onClick={() => setSearchOpen(true)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#101312] transition-colors duration-200 hover:bg-black/5 hover:text-signal"
-              >
+              <button type="button" aria-label={t("header.search")} onClick={() => setSearchOpen(true)} className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#101312] transition-colors duration-200 hover:bg-black/5 hover:text-signal">
                 <Search className="h-4 w-4" />
               </button>
-
               <ThemeToggle className="hidden lg:inline-flex text-[#101312] hover:bg-black/5" />
-
-              <a
-                href="#newsletter"
-                className="ml-2 hidden lg:inline-flex min-h-[38px] items-center justify-center rounded-[4px] bg-[#101312] px-4 text-xs font-semibold text-[#F2F4F3] transition-colors duration-200 hover:bg-signal hover:text-white"
-              >
+              <a href="#newsletter" className="ml-2 hidden lg:inline-flex min-h-[38px] items-center justify-center rounded-[4px] bg-[#101312] px-4 text-xs font-semibold text-[#F2F4F3] transition-colors duration-200 hover:bg-signal hover:text-white">
                 {t("header.subscribe")}
               </a>
 
               <Dialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
-                <Dialog.Trigger
-                  aria-label={t("header.openMenu")}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#101312] transition-colors duration-200 hover:bg-black/5 lg:hidden"
-                >
+                <Dialog.Trigger aria-label={t("header.openMenu")} className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#101312] transition-colors duration-200 hover:bg-black/5 lg:hidden">
                   <Menu className="h-5 w-5" />
                 </Dialog.Trigger>
                 <Dialog.Portal>
                   <Dialog.Overlay className="fixed inset-0 z-50 bg-[#101312]/40 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 duration-300" />
-                  <Dialog.Content
-                    data-lenis-prevent
-                    style={HEADER_VARS}
-                    className="fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-sm flex-col overflow-y-auto border-l border-[rgba(16,19,18,0.12)] px-6 pb-8 pt-4 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right duration-300 text-[#101312]"
-                  >
+                  <Dialog.Content data-lenis-prevent style={HEADER_VARS} className="fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-sm flex-col overflow-y-auto border-l border-[rgba(16,19,18,0.12)] px-6 pb-8 pt-4 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right duration-300 text-[#101312]">
                     <div className="flex items-center justify-between">
-                      <img
-                        src="/startup_news_room_logo.jpg"
-                        alt="Startup News Room Logo"
-                        className="h-8 w-auto object-contain mix-blend-darken"
-                      />
-                      <Dialog.Close
-                        aria-label={t("header.closeMenu")}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#101312] transition-colors hover:bg-black/5"
-                      >
+                      <img src="/startup_news_room_logo.jpg" alt="Startup News Room Logo" className="h-8 w-auto object-contain mix-blend-darken" />
+                      <Dialog.Close aria-label={t("header.closeMenu")} className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#101312] transition-colors hover:bg-black/5">
                         <X className="h-5 w-5" />
                       </Dialog.Close>
                     </div>
-
                     <Dialog.Title className="sr-only">{t("header.menuLabel")}</Dialog.Title>
-                    <Dialog.Description className="sr-only">
-                      {t("header.menuDescription")}
-                    </Dialog.Description>
-
+                    <Dialog.Description className="sr-only">{t("header.menuDescription")}</Dialog.Description>
                     <nav aria-label={t("footer.categories")} className="mt-6">
                       <ul className="divide-y divide-[rgba(16,19,18,0.1)] border-y border-[rgba(16,19,18,0.1)]">
                         {NAV.map((n) => (
-                          <li key={n.slug}>
-                            <NavLink
-                              slug={n.slug}
-                              onClick={() => setMenuOpen(false)}
-                              className={cn(
-                                "font-label flex min-h-[52px] items-center text-2xl font-bold transition-colors duration-200 hover:text-signal",
-                                active === n.slug ? "text-[#101312]" : "text-[#565C5A]",
-                              )}
-                            />
+                          <li key={n.slug || "all"}>
+                            <NavLink item={n} onClick={() => setMenuOpen(false)} className={cn("font-label flex min-h-[52px] items-center text-2xl font-bold transition-colors duration-200 hover:text-signal", active === n.slug ? "text-[#101312]" : "text-[#565C5A]")} />
                           </li>
                         ))}
                       </ul>
                     </nav>
-
                     <div className="mt-auto flex flex-col gap-4 pt-8">
                       <ThemeToggle withLabel className="justify-start text-[#101312]" />
-                      <a
-                        href="#newsletter"
-                        onClick={() => setMenuOpen(false)}
-                        className="inline-flex min-h-[44px] items-center justify-center rounded-[4px] bg-[#101312] px-5 text-sm font-semibold text-[#F2F4F3] transition-colors duration-200 hover:bg-signal hover:text-white"
-                      >
+                      <a href="#newsletter" onClick={() => setMenuOpen(false)} className="inline-flex min-h-[44px] items-center justify-center rounded-[4px] bg-[#101312] px-5 text-sm font-semibold text-[#F2F4F3] transition-colors duration-200 hover:bg-signal hover:text-white">
                         {t("header.subscribe")}
                       </a>
                     </div>
@@ -312,17 +201,33 @@ export function Header() {
             </div>
           </Container>
 
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute left-0 right-0 top-full h-6"
-            style={{
-              background: "linear-gradient(to bottom, rgba(16, 19, 18, 0.10), transparent)",
-              opacity: shadowOpacity,
-            }}
-          />
+          {/* 👇 REGION SWITCH ROW 👇 */}
+          <div className="border-t border-[rgba(16,19,18,0.06)] bg-[#F2F4F3]">
+            <Container className="flex h-9 items-center justify-center gap-6 sm:justify-start">
+              <span className="hidden text-[11px] font-bold uppercase tracking-wider text-[#565C5A] sm:inline">Edition:</span>
+              <div className="flex h-full items-center gap-4">
+                {REGIONS.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => handleRegionChange(r)}
+                    className={cn(
+                      "font-label h-full text-[13px] transition-colors duration-200",
+                      currentRegion === r ? "font-bold text-signal border-b-2 border-signal" : "text-[#565C5A] hover:text-[#101312]"
+                    )}
+                  >
+                    {r}
+                  </button>
+                ))}
+                {currentRegion && (
+                  <button onClick={() => handleRegionChange("")} className="text-[11px] text-muted-foreground underline hover:text-[#101312]">Clear</button>
+                )}
+              </div>
+            </Container>
+          </div>
+
+          <motion.div aria-hidden className="pointer-events-none absolute left-0 right-0 top-full h-6" style={{ background: "linear-gradient(to bottom, rgba(16, 19, 18, 0.10), transparent)", opacity: shadowOpacity }} />
         </motion.div>
       </motion.header>
-
       <SearchOverlay open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );

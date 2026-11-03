@@ -3,6 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 import type { Story } from "@/types/story";
 
 export function CategoryTag({
@@ -81,6 +82,7 @@ export function SourceLink({ story, className }: { story: Story; className?: str
       href={story.sourceUrl}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => trackEvent("click", "outbound_source_card", story.sourceName)}
       className={cn(
         "relative z-10 inline-flex min-h-[44px] items-center gap-1 text-[0.8125rem] font-medium text-muted-foreground transition-colors duration-200 hover:text-signal",
         className,

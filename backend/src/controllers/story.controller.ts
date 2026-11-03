@@ -9,7 +9,6 @@ import {
     listPublicStories,
 } from '../services/story.service.js';
 import type { ListStoriesQuery } from '../validators/public.validators.js';
-import { ApiError } from '../utils/ApiError.js';
 
 export const listStories: RequestHandler = async (req, res) => {
     const q = query<ListStoriesQuery>(req);
@@ -43,5 +42,3 @@ export const getRelated: RequestHandler = async (req, res) => {
     const stories = await getRelatedStories(slug);
     res.json({ data: stories });
 };
-
-export const _unused = ApiError; // keep import tree-shakeable

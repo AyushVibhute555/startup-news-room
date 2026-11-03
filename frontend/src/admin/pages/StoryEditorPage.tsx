@@ -1,7 +1,7 @@
-// src/admin/pages/StoryEditorPage.tsx
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
     AdminApiError,
     categories as categoriesApi,
@@ -14,56 +14,78 @@ import {
 
 interface FormState {
     title: string;
+    seoTitle: string;
     summary: string;
     content: string;
+    author: string;
     imageUrl: string;
     imageCredit: string;
     sourceName: string;
     sourceUrl: string;
     category: string;
+    region: "Karnataka" | "India" | "Global";
+    city: string;
+    companiesInput: string;
     tagsInput: string;
+    // Funding
+    fundingAmountINR: string;
+    fundingAmountUSD: string;
+    fundingRound: string;
+    fundingInvestors: string;
+    // Editorial Controls
+    isSponsored: boolean;
+    sponsorName: string;
+    homepageSlot: "lead" | "top" | "none";
+    breakingExpiresAt: string;
+    // Status
     status: "draft" | "published";
-    publishedAt: string; // datetime-local or ""
+    publishedAt: string;
     isFeatured: boolean;
     isBreaking: boolean;
 }
 
 const empty: FormState = {
-    title: "", summary: "", content: "", imageUrl: "", imageCredit: "",
-    sourceName: "", sourceUrl: "", category: "",
-    tagsInput: "", status: "draft", publishedAt: "",
-    isFeatured: false, isBreaking: false,
+    title: "", seoTitle: "", summary: "", content: "", author: "Staff",
+    imageUrl: "", imageCredit: "", sourceName: "", sourceUrl: "", category: "",
+    region: "India", city: "", companiesInput: "", tagsInput: "",
+    fundingAmountINR: "", fundingAmountUSD: "", fundingRound: "", fundingInvestors: "",
+    isSponsored: false, sponsorName: "", homepageSlot: "none", breakingExpiresAt: "",
+    status: "draft", publishedAt: "", isFeatured: false, isBreaking: false,
 };
 
-function toLocalInput(iso: string): string {
+function toLocalInput(iso: string | null): string {
+    if (!iso) return "";
     const d = new Date(iso);
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function fromLocalInput(local: string): string | undefined {
-    if (!local) return undefined;
+function fromLocalInput(local: string): string | null {
+    if (!local) return null;
     const d = new Date(local);
-    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function storyToForm(s: AdminStory): FormState {
     return {
-        title: s.title, summary: s.summary, content: s.content,
-        imageUrl: s.imageUrl, imageCredit: s.imageCredit,
-        sourceName: s.sourceName, sourceUrl: s.sourceUrl,
-        category: s.category, tagsInput: s.tags.join(", "),
-        status: s.status, publishedAt: s.publishedAt ? toLocalInput(s.publishedAt) : "",
+        title: s.title, seoTitle: s.seoTitle || "", summary: s.summary, content: s.content,
+        author: s.author || "Staff", imageUrl: s.imageUrl, imageCredit: s.imageCredit,
+        sourceName: s.sourceName, sourceUrl: s.sourceUrl, category: s.category,
+        region: s.region || "India", city: s.city || "",
+        companiesInput: s.companies.join(", "), tagsInput: s.tags.join(", "),
+        fundingAmountINR: s.fundingDetails?.amountINR || "",
+        fundingAmountUSD: s.fundingDetails?.amountUSD || "",
+        fundingRound: s.fundingDetails?.round || "",
+        fundingInvestors: s.fundingDetails?.investors?.join(", ") || "",
+        isSponsored: s.isSponsored, sponsorName: s.sponsorName || "",
+        homepageSlot: s.homepageSlot || "none", breakingExpiresAt: toLocalInput(s.breakingExpiresAt),
+        status: s.status, publishedAt: toLocalInput(s.publishedAt),
         isFeatured: s.isFeatured, isBreaking: s.isBreaking,
     };
 }
 
-function parseTags(input: string): string[] {
-    return Array.from(
-        new Set(
-            input.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean),
-        ),
-    ).slice(0, 8);
+function parseArrayInput(input: string, max = 99): string[] {
+    return Array.from(new Set(input.split(",").map((t) => t.trim()).filter(Boolean))).slice(0, max);
 }
 
 export function StoryEditorPage() {
@@ -105,15 +127,18 @@ export function StoryEditorPage() {
     function validate(): boolean {
         const e: Record<string, string> = {};
         const t = form.title.trim(), s = form.summary.trim();
+
         if (t.length < 10) e.title = "At least 10 characters";
         if (t.length > 180) e.title = "At most 180 characters";
+
         if (s.length < 40) e.summary = "At least 40 characters";
         if (s.length > 500) e.summary = "At most 500 characters";
-        if (form.content.length > 5000) e.content = "At most 5000 characters";
+
         if (!form.imageUrl.startsWith("https://")) e.imageUrl = "Must be an https:// URL";
         if (!form.sourceName.trim()) e.sourceName = "Required";
         if (!/^https?:\/\//i.test(form.sourceUrl)) e.sourceUrl = "Must start with http(s)://";
         if (!form.category) e.category = "Choose a category";
+
         setErrors(e);
         return Object.keys(e).length === 0;
     }
@@ -122,27 +147,47 @@ export function StoryEditorPage() {
         e.preventDefault();
         if (!validate()) return;
         setSaving(true);
+
+        const payload = {
+            title: form.title.trim(),
+            seoTitle: form.seoTitle.trim(),
+            summary: form.summary.trim(),
+            content: form.content.trim(),
+            author: form.author.trim(),
+            imageUrl: form.imageUrl.trim(),
+            imageCredit: form.imageCredit.trim(),
+            sourceName: form.sourceName.trim(),
+            sourceUrl: form.sourceUrl.trim(),
+            category: form.category,
+            region: form.region,
+            city: form.city.trim(),
+            companies: parseArrayInput(form.companiesInput),
+            tags: parseArrayInput(form.tagsInput, 8),
+            fundingDetails: {
+                amountINR: form.fundingAmountINR.trim(),
+                amountUSD: form.fundingAmountUSD.trim(),
+                round: form.fundingRound.trim(),
+                investors: parseArrayInput(form.fundingInvestors),
+            },
+            isSponsored: form.isSponsored,
+            sponsorName: form.sponsorName.trim(),
+            homepageSlot: form.homepageSlot,
+
+            // 👇 SEND UNDEFINED IF BLANK SO THE BACKEND DEFAULTS TO CURRENT TIME
+            breakingExpiresAt: form.breakingExpiresAt ? fromLocalInput(form.breakingExpiresAt) : undefined,
+            publishedAt: form.publishedAt ? fromLocalInput(form.publishedAt) : undefined,
+
+            status: form.status,
+            isFeatured: form.isFeatured,
+            isBreaking: form.isBreaking,
+        };
+
         try {
-            const payload = {
-                title: form.title.trim(),
-                summary: form.summary.trim(),
-                content: form.content.trim(),
-                imageUrl: form.imageUrl.trim(),
-                imageCredit: form.imageCredit.trim(),
-                sourceName: form.sourceName.trim(),
-                sourceUrl: form.sourceUrl.trim(),
-                category: form.category,
-                tags: parseTags(form.tagsInput),
-                status: form.status,
-                publishedAt: fromLocalInput(form.publishedAt),
-                isFeatured: form.isFeatured,
-                isBreaking: form.isBreaking,
-            };
             if (isEdit && id) {
-                await storiesApi.update(id, payload);
+                await storiesApi.update(id, payload as any);
                 toast.success("Story updated");
             } else {
-                await storiesApi.create(payload);
+                await storiesApi.create(payload as any);
                 toast.success("Story created");
             }
             navigate("/admin/stories");
@@ -190,12 +235,10 @@ export function StoryEditorPage() {
         }
     }
 
-    if (loading) {
-        return <p className="text-sm text-muted-foreground">Loading story…</p>;
-    }
+    if (loading) return <p className="text-sm text-muted-foreground">Loading story…</p>;
 
     return (
-        <form onSubmit={onSubmit} className="mx-auto max-w-3xl space-y-6">
+        <form onSubmit={onSubmit} className="mx-auto max-w-4xl space-y-8 pb-24">
             <div className="flex items-center justify-between">
                 <h1 className="font-label text-2xl">{isEdit ? "Edit story" : "New story"}</h1>
                 <button type="button" onClick={() => navigate("/admin/stories")} className="text-sm text-muted-foreground hover:text-foreground">
@@ -204,137 +247,193 @@ export function StoryEditorPage() {
             </div>
 
             {/* Link preview auto-fill */}
-            <section className="rounded border border-border p-4">
-                <label className="text-sm font-medium">Auto-fill from source URL (optional)</label>
+            <section className="rounded-lg border border-border bg-muted/20 p-5">
+                <label className="text-sm font-semibold">Auto-fill from source URL (optional)</label>
                 <div className="mt-2 flex gap-2">
-                    <input
-                        type="url"
-                        placeholder="https://techcrunch.com/..."
-                        value={previewUrl}
-                        onChange={(e) => setPreviewUrl(e.target.value)}
-                        className="flex-1 rounded border border-border bg-background px-3 py-2 text-sm"
-                    />
-                    <button
-                        type="button"
-                        onClick={onAutoFill}
-                        disabled={linkBusy || !previewUrl.trim()}
-                        className="rounded border border-border px-3 py-2 text-sm disabled:opacity-50"
-                    >
-                        {linkBusy ? "Fetching…" : "Fetch"}
+                    <input type="url" placeholder="https://techcrunch.com/..." value={previewUrl} onChange={(e) => setPreviewUrl(e.target.value)}
+                        className="flex-1 rounded border border-border bg-background px-3 py-2 text-sm" />
+                    <button type="button" onClick={onAutoFill} disabled={linkBusy || !previewUrl.trim()} className="rounded border border-border bg-background px-4 py-2 text-sm font-medium disabled:opacity-50">
+                        {linkBusy ? "Fetching…" : "Fetch Data"}
                     </button>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                    Extracts title, summary, image and source name from the publisher's Open Graph tags.
-                </p>
             </section>
 
-            {/* Title + Summary */}
-            <Field id="title" label="Title" error={errors.title}>
-                <input id="title" value={form.title} onChange={(e) => update("title", e.target.value)}
-                    className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
-            </Field>
+            {/* CORE CONTENT */}
+            <section className="space-y-4">
+                <h2 className="border-b border-border pb-2 font-label text-lg">Core Content</h2>
+                <Field id="title" label="Headline" error={errors.title} hint="10–180 characters">
+                    <input id="title" value={form.title} onChange={(e) => update("title", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                </Field>
+                <Field id="seoTitle" label="SEO Headline (Optional)" hint="Overrides the headline in Google search results">
+                    <input id="seoTitle" value={form.seoTitle} onChange={(e) => update("seoTitle", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                </Field>
 
-            <Field id="summary" label="Summary" error={errors.summary} hint="40–500 characters, plain text">
-                <textarea id="summary" rows={3} value={form.summary} onChange={(e) => update("summary", e.target.value)}
-                    className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
-            </Field>
+                <Field id="summary" label="Summary" error={errors.summary} hint="40–500 characters">
+                    <div className="relative mt-1">
+                        <textarea
+                            id="summary"
+                            rows={3}
+                            maxLength={500}
+                            value={form.summary}
+                            onChange={(e) => update("summary", e.target.value)}
+                            className="w-full rounded border border-border bg-background px-3 py-2 pb-6"
+                        />
+                        <span className={cn(
+                            "absolute bottom-2 right-3 text-[10px] font-semibold",
+                            form.summary.length > 450 ? "text-amber-500" : "text-muted-foreground",
+                            form.summary.length === 500 ? "text-red-500" : ""
+                        )}>
+                            {form.summary.length} / 500
+                        </span>
+                    </div>
+                </Field>
 
-            <Field id="content" label="Content (optional)" error={errors.content} hint="Up to 5000 characters">
-                <textarea id="content" rows={6} value={form.content} onChange={(e) => update("content", e.target.value)}
-                    className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
-            </Field>
+                <Field id="content" label="Content (Optional)" hint="Up to 5000 characters">
+                    <textarea id="content" rows={6} value={form.content} onChange={(e) => update("content", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                </Field>
+            </section>
 
-            {/* Image */}
-            <section className="space-y-3 rounded border border-border p-4">
-                <label className="text-sm font-medium">Image</label>
-                {form.imageUrl && (
-                    <img src={form.imageUrl} alt="" className="h-40 w-full rounded object-cover" />
-                )}
-                <input
-                    value={form.imageUrl}
-                    onChange={(e) => update("imageUrl", e.target.value)}
-                    placeholder="https://..."
-                    className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
-                />
-                {errors.imageUrl && <p className="text-xs text-signal">{errors.imageUrl}</p>}
-                <div className="flex items-center gap-3">
-                    <label className="cursor-pointer rounded border border-border px-3 py-1.5 text-sm">
-                        {uploading ? "Uploading…" : "Upload file"}
+            {/* MEDIA */}
+            <section className="space-y-4 rounded-lg border border-border p-5">
+                <h2 className="font-label text-lg">Media</h2>
+                {form.imageUrl && <img src={form.imageUrl} alt="" className="h-40 w-full rounded object-cover" />}
+                <div className="flex flex-col gap-3 sm:flex-row">
+                    <input value={form.imageUrl} onChange={(e) => update("imageUrl", e.target.value)} placeholder="https://... (Image URL)"
+                        className="flex-1 rounded border border-border bg-background px-3 py-2 text-sm" />
+                    <label className="cursor-pointer rounded border border-border bg-background px-4 py-2 text-center text-sm font-medium">
+                        {uploading ? "Uploading…" : "Upload Image"}
                         <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onUpload} disabled={uploading} className="hidden" />
                     </label>
-                    <input
-                        value={form.imageCredit}
-                        onChange={(e) => update("imageCredit", e.target.value)}
-                        placeholder="Image credit (e.g. Photo: Unsplash)"
-                        className="flex-1 rounded border border-border bg-background px-3 py-1.5 text-sm"
-                    />
                 </div>
+                {errors.imageUrl && <p className="text-xs text-signal">{errors.imageUrl}</p>}
+                <input value={form.imageCredit} onChange={(e) => update("imageCredit", e.target.value)} placeholder="Image credit (e.g. Photo: Unsplash)"
+                    className="w-full rounded border border-border bg-background px-3 py-2 text-sm" />
             </section>
 
-            {/* Source */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field id="sourceName" label="Source name" error={errors.sourceName}>
-                    <input id="sourceName" value={form.sourceName} onChange={(e) => update("sourceName", e.target.value)}
-                        placeholder="TechCrunch"
-                        className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+            {/* METADATA & TAXONOMY */}
+            <section className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <Field id="sourceName" label="Source Name" error={errors.sourceName}>
+                    <input id="sourceName" value={form.sourceName} onChange={(e) => update("sourceName", e.target.value)} placeholder="TechCrunch" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
                 </Field>
                 <Field id="sourceUrl" label="Source URL" error={errors.sourceUrl}>
-                    <input id="sourceUrl" value={form.sourceUrl} onChange={(e) => update("sourceUrl", e.target.value)}
-                        placeholder="https://..."
-                        className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                    <input id="sourceUrl" value={form.sourceUrl} onChange={(e) => update("sourceUrl", e.target.value)} placeholder="https://..." className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
                 </Field>
-            </div>
-
-            {/* Category + Tags */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field id="author" label="Author / Desk">
+                    <input id="author" value={form.author} onChange={(e) => update("author", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                </Field>
                 <Field id="category" label="Category" error={errors.category}>
-                    <select id="category" value={form.category} onChange={(e) => update("category", e.target.value)}
-                        className="mt-1 w-full rounded border border-border bg-background px-3 py-2">
+                    <select id="category" value={form.category} onChange={(e) => update("category", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2">
                         {categories.map((c) => <option key={c._id} value={c.slug}>{c.name}</option>)}
                     </select>
                 </Field>
                 <Field id="tags" label="Tags" hint="Comma-separated, max 8">
-                    <input id="tags" value={form.tagsInput} onChange={(e) => update("tagsInput", e.target.value)}
-                        placeholder="funding, robotics, series-b"
-                        className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                    <input id="tags" value={form.tagsInput} onChange={(e) => update("tagsInput", e.target.value)} placeholder="funding, robotics" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
                 </Field>
-            </div>
+                <Field id="companies" label="Companies Mentioned" hint="Comma-separated">
+                    <input id="companies" value={form.companiesInput} onChange={(e) => update("companiesInput", e.target.value)} placeholder="Acme Robotics, Beta Inc" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                </Field>
+            </section>
 
-            {/* Status + Published date */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* REGIONAL DATA */}
+            <section className="grid grid-cols-1 gap-6 rounded-lg border border-border bg-muted/10 p-5 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                    <h2 className="font-label text-lg">Regional Targeting</h2>
+                    <p className="text-sm text-muted-foreground">Used for the "Karnataka · India · Global" header switcher.</p>
+                </div>
+                <Field id="region" label="Region">
+                    <select id="region" value={form.region} onChange={(e) => update("region", e.target.value as any)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2">
+                        <option value="Karnataka">Karnataka</option>
+                        <option value="India">India</option>
+                        <option value="Global">Global</option>
+                    </select>
+                </Field>
+                <Field id="city" label="City (Optional)">
+                    <input id="city" value={form.city} onChange={(e) => update("city", e.target.value)} placeholder="Bengaluru" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                </Field>
+            </section>
+
+            {/* FUNDING DATA */}
+            <section className="grid grid-cols-1 gap-6 rounded-lg border border-border bg-muted/10 p-5 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                    <h2 className="font-label text-lg">Funding Details (Optional)</h2>
+                    <p className="text-sm text-muted-foreground">Populating this will automatically add the story to the Funding Tracker.</p>
+                </div>
+                <Field id="fundingRound" label="Round">
+                    <input id="fundingRound" value={form.fundingRound} onChange={(e) => update("fundingRound", e.target.value)} placeholder="Series A" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                </Field>
+                <div className="grid grid-cols-2 gap-4">
+                    <Field id="fundingAmountINR" label="Amount (₹)">
+                        <input id="fundingAmountINR" value={form.fundingAmountINR} onChange={(e) => update("fundingAmountINR", e.target.value)} placeholder="12 Crore" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                    </Field>
+                    <Field id="fundingAmountUSD" label="Amount ($)">
+                        <input id="fundingAmountUSD" value={form.fundingAmountUSD} onChange={(e) => update("fundingAmountUSD", e.target.value)} placeholder="$1.5M" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                    </Field>
+                </div>
+                <Field id="fundingInvestors" label="Lead Investors" hint="Comma-separated" >
+                    <input id="fundingInvestors" value={form.fundingInvestors} onChange={(e) => update("fundingInvestors", e.target.value)} placeholder="Sequoia, Accel" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                </Field>
+            </section>
+
+            {/* EDITORIAL CONTROLS */}
+            <section className="grid grid-cols-1 gap-6 rounded-lg border border-border bg-muted/10 p-5 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                    <h2 className="font-label text-lg">Editorial Controls</h2>
+                </div>
+                <Field id="homepageSlot" label="Homepage Slot">
+                    <select id="homepageSlot" value={form.homepageSlot} onChange={(e) => update("homepageSlot", e.target.value as any)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2">
+                        <option value="none">None (Default)</option>
+                        <option value="lead">Lead Story (Main Hero)</option>
+                        <option value="top">Top Stories Column</option>
+                    </select>
+                </Field>
+
+                <div className="space-y-3 rounded border border-border p-3">
+                    <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={form.isSponsored} onChange={(e) => update("isSponsored", e.target.checked)} />
+                        Sponsored Post
+                    </label>
+                    {form.isSponsored && (
+                        <input value={form.sponsorName} onChange={(e) => update("sponsorName", e.target.value)} placeholder="Sponsor Name" className="w-full rounded border border-border bg-background px-3 py-1.5 text-sm" />
+                    )}
+                </div>
+
+                <Field id="publishedAt" label="Publish Date/Time" hint="Leave blank for now. Future = scheduled.">
+                    <input id="publishedAt" type="datetime-local" value={form.publishedAt} onChange={(e) => update("publishedAt", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                </Field>
+
                 <Field id="status" label="Status">
-                    <select id="status" value={form.status} onChange={(e) => update("status", e.target.value as "draft" | "published")}
-                        className="mt-1 w-full rounded border border-border bg-background px-3 py-2">
+                    <select id="status" value={form.status} onChange={(e) => update("status", e.target.value as any)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2">
                         <option value="draft">Draft (hidden)</option>
                         <option value="published">Published (live)</option>
                     </select>
                 </Field>
-                <Field id="publishedAt" label="Publish date/time" hint="Leave blank for now. Future = scheduled.">
-                    <input id="publishedAt" type="datetime-local" value={form.publishedAt}
-                        onChange={(e) => update("publishedAt", e.target.value)}
-                        className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+
+                <Field id="breakingExpiresAt" label="Breaking Expiry" hint="Stop showing in ticker after this time">
+                    <input id="breakingExpiresAt" type="datetime-local" value={form.breakingExpiresAt} onChange={(e) => update("breakingExpiresAt", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
                 </Field>
-            </div>
+            </section>
 
-            {/* Flags */}
-            <div className="flex gap-6">
-                <label className="flex items-center gap-2 text-sm">
+            {/* FLAGS */}
+            <div className="flex gap-6 rounded-lg border border-border p-5">
+                <label className="flex items-center gap-2 text-sm font-medium">
                     <input type="checkbox" checked={form.isFeatured} onChange={(e) => update("isFeatured", e.target.checked)} />
-                    Featured (replaces current featured)
+                    Featured (Hero fallback)
                 </label>
-                <label className="flex items-center gap-2 text-sm">
+                <label className="flex items-center gap-2 text-sm font-medium">
                     <input type="checkbox" checked={form.isBreaking} onChange={(e) => update("isBreaking", e.target.checked)} />
-                    Breaking news
+                    Breaking News
                 </label>
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-border pt-4">
-                <button type="button" onClick={() => navigate("/admin/stories")} className="rounded border border-border px-4 py-2 text-sm">
-                    Cancel
-                </button>
-                <button type="submit" disabled={saving} className="rounded bg-foreground px-5 py-2 text-sm font-medium text-background disabled:opacity-60">
-                    {saving ? "Saving…" : isEdit ? "Update story" : "Create story"}
-                </button>
+            <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                <div className="mx-auto flex max-w-4xl justify-end gap-3">
+                    <button type="button" onClick={() => navigate("/admin/stories")} className="rounded border border-border px-4 py-2 text-sm font-medium">
+                        Cancel
+                    </button>
+                    <button type="submit" disabled={saving} className="rounded bg-foreground px-6 py-2 text-sm font-medium text-background disabled:opacity-60">
+                        {saving ? "Saving…" : isEdit ? "Update story" : "Create story"}
+                    </button>
+                </div>
             </div>
         </form>
     );
@@ -345,7 +444,7 @@ function Field({ id, label, error, hint, children }: {
 }) {
     return (
         <div>
-            <label htmlFor={id} className="text-sm font-medium">{label}</label>
+            <label htmlFor={id} className="text-sm font-semibold">{label}</label>
             {children}
             {hint && !error && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
             {error && <p className="mt-1 text-xs text-signal">{error}</p>}

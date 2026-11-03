@@ -30,14 +30,29 @@ export interface AdminUser {
 export interface AdminStory {
     _id: string;
     title: string;
+    seoTitle: string;
     slug: string;
     summary: string;
     content: string;
+    author: string;
     imageUrl: string;
     imageCredit: string;
     sourceName: string;
     sourceUrl: string;
     category: string;
+    region: "Karnataka" | "India" | "Global";
+    city: string;
+    companies: string[];
+    fundingDetails?: {
+        amountINR?: string;
+        amountUSD?: string;
+        round?: string;
+        investors?: string[];
+    };
+    isSponsored: boolean;
+    sponsorName: string;
+    homepageSlot: "lead" | "top" | "none";
+    breakingExpiresAt: string | null;
     tags: string[];
     status: "draft" | "published";
     publishedAt: string;
@@ -179,6 +194,7 @@ export const auth = {
 export interface ListStoriesParams {
     status?: "draft" | "published";
     category?: string;
+    region?: string; // 👈 Added
     q?: string;
     page?: number;
     limit?: number;

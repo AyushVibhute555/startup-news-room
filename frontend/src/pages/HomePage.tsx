@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { BreakingBar } from "@/components/BreakingBar";
@@ -9,12 +9,7 @@ import { Newsletter } from "@/components/Newsletter";
 import { SectionHeader } from "@/components/SectionHeader";
 import { TranslatedText } from "@/components/TranslatedText";
 import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
-import {
-  ErrorState,
-  GridSkeleton,
-  LeadSkeleton,
-  RowSkeleton,
-} from "@/components/States";
+import { ErrorState, GridSkeleton, LeadSkeleton, RowSkeleton } from "@/components/States";
 import { SourceLink, StoryLink, StoryMeta } from "@/components/StoryBits";
 import { StoryCard } from "@/components/StoryCard";
 import { StoryImage } from "@/components/StoryImage";
@@ -81,6 +76,8 @@ function LeadStory({ story }: { story: Story }) {
 
 function TrendingList({ stories }: { stories: Story[] }) {
   const { t } = useTranslation();
+  if (!stories || stories.length === 0) return null; // Hide if empty
+
   return (
     <section aria-label={t("home.trending")}>
       <SectionHeader title={t("home.trending")} />
@@ -117,6 +114,8 @@ function TrendingList({ stories }: { stories: Story[] }) {
 
 function LatestUpdatesFeed({ stories }: { stories: Story[] }) {
   const { t } = useTranslation();
+  if (!stories || stories.length === 0) return null;
+
   return (
     <section aria-label={t("home.latestUpdates")}>
       <SectionHeader
@@ -148,25 +147,28 @@ function LatestUpdatesFeed({ stories }: { stories: Story[] }) {
 
 export function HomePage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const region = searchParams.get("region") || undefined;
+
   const breaking = useApi(getBreakingStories, []);
   const featured = useApi(getFeaturedStory, []);
   const top = useApi(getTopStories, []);
-  const latest = useApi(() => getStories({ limit: 40 }), []);
+
+  const latest = useApi(() => getStories({ limit: 40, region }), [region]);
 
   const { pool, updates } = useMemo(() => {
     const allLatest = latest.data?.items ?? [];
     const map = new Map<string, Story>();
+
     if (featured.data) map.set(featured.data._id, featured.data);
-    top.data?.forEach((s) => {
-      if (!map.has(s._id)) map.set(s._id, s);
-    });
-    allLatest.forEach((s) => {
-      if (!map.has(s._id)) map.set(s._id, s);
-    });
+    top.data?.forEach((s) => { if (!map.has(s._id)) map.set(s._id, s); });
+    allLatest.forEach((s) => { if (!map.has(s._id)) map.set(s._id, s); });
+
     const fullPool = Array.from(map.values());
     const sortedUpdates = [...allLatest]
       .sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt))
       .slice(0, 6);
+
     return { pool: fullPool, updates: sortedUpdates };
   }, [featured.data, top.data, latest.data]);
 
@@ -174,7 +176,12 @@ export function HomePage() {
   const topStoriesRows = pool.slice(1, 5);
   const carouselStories = pool.slice(5, 17);
   const latestGridStories = pool.slice(17, 29);
-  const trendingStories = pool.slice(29, 34);
+
+  // 👇 THE FIX: If the pool is smaller than 30 stories, just grab the 5 most recent from the latest feed
+  const trendingStories = pool.length > 29
+    ? pool.slice(29, 34)
+    : (latest.data?.items ?? []).slice(0, 5);
+
   const topicCategories = categories.slice(0, 4);
 
   return (

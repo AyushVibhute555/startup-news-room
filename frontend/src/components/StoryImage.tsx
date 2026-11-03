@@ -12,7 +12,6 @@ interface Props {
   priority?: boolean;
   badge?: "Breaking" | "Live" | "Exclusive";
   className?: string;
-  /** Adds hover zoom 1.03 when inside a .group */
   zoom?: boolean;
 }
 
@@ -62,7 +61,6 @@ export function StoryImage({
         </div>
       ) : (
         <>
-          {/* Skeleton shimmer placeholder before image is loaded */}
           {!loaded && <div className="skeleton absolute inset-0" aria-hidden />}
           <img
             src={src}

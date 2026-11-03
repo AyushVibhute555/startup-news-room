@@ -6,20 +6,24 @@ import { Toaster } from "sonner";
 import { App } from "./App";
 import "./styles.css";
 import "@/i18n";
+import { HelmetProvider } from 'react-helmet-async';
+
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <App />
-        <Toaster
-          position="bottom-center"
-          toastOptions={{
-            className:
-              "!rounded-[4px] !shadow-none !border !border-border !bg-background !text-foreground",
-          }}
-        />
-      </ThemeProvider>
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <App />
+          <Toaster
+            position="bottom-center"
+            toastOptions={{
+              className:
+                "!rounded-[4px] !shadow-none !border !border-border !bg-background !text-foreground",
+            }}
+          />
+        </ThemeProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   </StrictMode>,
 );

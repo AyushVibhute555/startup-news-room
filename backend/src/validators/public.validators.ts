@@ -4,6 +4,7 @@ import { emailField, isoDate, limitQuery, pageQuery } from './common.js';
 export const listStoriesQuerySchema = z
     .object({
         category: z.string().trim().toLowerCase().max(80).optional(),
+        region: z.string().trim().max(80).optional(), // 👈 ADDED THIS LINE
         q: z.string().trim().min(1).max(120).optional(),
         page: pageQuery,
         limit: limitQuery(50, 9),

@@ -26,9 +26,18 @@ export function StoryCard({
         badge={story.isBreaking ? t("breaking") : undefined}
       />
       <div className="mt-3.5 flex flex-1 flex-col">
-        <span className="font-label text-xs uppercase tracking-wide text-muted-foreground">
-          {t(`categories.${story.category}`)}
-        </span>
+
+        {/* 👇 Sponsored logic 👇 */}
+        {story.isSponsored ? (
+          <span className="font-label inline-flex w-fit items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            Sponsored by {story.sponsorName || "Partner"}
+          </span>
+        ) : (
+          <span className="font-label text-xs uppercase tracking-wide text-muted-foreground">
+            {t(`categories.${story.category}`)}
+          </span>
+        )}
+
         <h3
           className={cn(
             "headline mt-2 line-clamp-3",
@@ -41,7 +50,6 @@ export function StoryCard({
         >
           <StoryLink story={story}>
             <span className="link-underline">
-              {/* ↓ THIS IS THE ONLY CHANGE ↓ */}
               <TranslatedHighlightedText text={story.title} />
             </span>
           </StoryLink>

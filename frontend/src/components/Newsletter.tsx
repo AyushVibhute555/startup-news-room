@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Container } from "@/components/Container";
 import { ApiError, subscribeNewsletter } from "@/lib/api";
+import { trackEvent } from "@/lib/analytics";
 
 const schema = z.object({
   email: z.string().trim().email("Please enter a valid email address").max(255),
@@ -24,6 +25,7 @@ export function Newsletter() {
     try {
       await subscribeNewsletter(values.email);
       toast.success(t("newsletter.success"));
+      trackEvent("signup", "newsletter", "footer_form"); // 👈 Analytics Event
       reset();
     } catch (err) {
       toast.error(

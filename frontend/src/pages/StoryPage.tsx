@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowUpRight, Check, Link2, Linkedin, MessageCircle, Twitter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Helmet } from "react-helmet-async";
 import { toast } from "sonner";
 import { btnPrimary } from "@/components/Buttons";
 import { Container } from "@/components/Container";
@@ -15,6 +16,7 @@ import { GridSkeleton } from "@/components/States";
 import { getRelatedStories, getStoryBySlug } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
+import { trackEvent } from "@/lib/analytics";
 import type { Story } from "@/types/story";
 import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
 
@@ -27,6 +29,7 @@ function ShareRow({ story }: { story: Story }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => setUrl(window.location.href), []);
   const enc = encodeURIComponent;
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="font-label mr-2 text-sm text-muted-foreground">{t("story.share")}</span>
@@ -38,6 +41,7 @@ function ShareRow({ story }: { story: Story }) {
           await navigator.clipboard.writeText(url);
           setCopied(true);
           toast.success(t("story.linkCopied"));
+          trackEvent("share", "copy_link", story.title);
           setTimeout(() => setCopied(false), 2000);
         }}
       >
@@ -48,6 +52,7 @@ function ShareRow({ story }: { story: Story }) {
         aria-label={t("story.shareOn", { network: "X" })}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => trackEvent("share", "x_twitter", story.title)}
         href={`https://x.com/intent/post?url=${enc(url)}&text=${enc(story.title)}`}
       >
         <Twitter className="h-4 w-4" />
@@ -57,6 +62,7 @@ function ShareRow({ story }: { story: Story }) {
         aria-label={t("story.shareOn", { network: "LinkedIn" })}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => trackEvent("share", "linkedin", story.title)}
         href={`https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}`}
       >
         <Linkedin className="h-4 w-4" />
@@ -66,6 +72,7 @@ function ShareRow({ story }: { story: Story }) {
         aria-label={t("story.shareOn", { network: "WhatsApp" })}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => trackEvent("share", "whatsapp", story.title)}
         href={`https://wa.me/?text=${enc(`${story.title} ${url}`)}`}
       >
         <MessageCircle className="h-4 w-4" />
@@ -78,8 +85,48 @@ export function StoryPage({ story }: { story: Story }) {
   const { t } = useTranslation();
   const related = useApi(() => getRelatedStories(story.slug), [story.slug]);
 
+  const pageUrl = `https://startup-news-room.vercel.app/news/${story.slug}`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: story.title,
+    image: [story.imageUrl],
+    datePublished: story.publishedAt,
+    dateModified: story.publishedAt,
+    author: [{ "@type": "Organization", name: story.sourceName }],
+    publisher: {
+      "@type": "Organization",
+      name: "Startup News Room",
+      logo: { "@type": "ImageObject", url: "https://startup-news-room.vercel.app/logo.jpg" },
+    },
+    description: story.summary,
+  };
+
   return (
     <>
+      <Helmet>
+        <title>{story.title} | Startup News Room</title>
+        <meta name="description" content={story.summary} />
+        <link rel="canonical" href={pageUrl} />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content={story.title} />
+        <meta property="og:description" content={story.summary} />
+        <meta property="og:image" content={story.imageUrl} />
+        <meta property="og:url" content={pageUrl} />
+        <meta property="og:site_name" content="Startup News Room" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={story.title} />
+        <meta name="twitter:description" content={story.summary} />
+        <meta name="twitter:image" content={story.imageUrl} />
+
+        {/* Structured Data */}
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      </Helmet>
+
       <ScrollProgress />
       <article>
         <Container className="pt-8 lg:pt-12">
@@ -158,6 +205,7 @@ export function StoryPage({ story }: { story: Story }) {
               href={story.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackEvent("click", "outbound_source_full", story.sourceName)}
               className={btnPrimary("mt-10 w-full text-base sm:w-auto")}
             >
               {t("story.readFullAt", { source: story.sourceName })}{" "}

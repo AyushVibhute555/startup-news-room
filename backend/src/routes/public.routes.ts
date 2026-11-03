@@ -25,6 +25,9 @@ import {
     unsubscribeHandler,
 } from '../controllers/newsletter.controller.js';
 import { contactHandler } from '../controllers/contact.controller.js';
+import { getSitemap, getRss } from '../controllers/seo.controller.js';
+import { translateHandler } from '../controllers/translate.controller.js';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -35,6 +38,10 @@ router.use((req, res, next) => {
     }
     next();
 });
+
+// SEO Routes
+router.get('/sitemap.xml', getSitemap);
+router.get('/rss.xml', getRss);
 
 // Order matters: specific routes before /stories/:slug
 router.get('/stories/featured', listFeatured);
@@ -59,5 +66,13 @@ router.get(
 );
 
 router.post('/contact', contactLimiter, validate({ body: contactSchema }), contactHandler);
+
+// Translation Route
+const translateSchema = z.object({
+    text: z.string().min(1).max(5000),
+    targetLang: z.enum(['hi', 'kn', 'te']),
+}).strict();
+
+router.post('/translate', validate({ body: translateSchema }), translateHandler);
 
 export default router;

@@ -6,13 +6,7 @@ import { ApiError } from '../utils/ApiError.js';
 
 export type PublicStory = Record<string, unknown>;
 
-/**
- * THE single source of truth for the public visibility rule.
- * A story is public only when it is published AND its publish date has passed.
- */
-export function publicStoryFilter(
-    extra: FilterQuery<StoryAttrs> = {},
-): FilterQuery<StoryAttrs> {
+export function publicStoryFilter(extra: FilterQuery<StoryAttrs> = {}): FilterQuery<StoryAttrs> {
     const { publishedAt, status: _ignoredStatus, ...rest } = extra as FilterQuery<StoryAttrs> & {
         status?: unknown;
         publishedAt?: Record<string, unknown>;
@@ -25,9 +19,7 @@ export function publicStoryFilter(
 }
 
 function publicProjection(withScore = false) {
-    return withScore
-        ? { ...PUBLIC_STORY_PROJECTION, score: { $meta: 'textScore' as const } }
-        : PUBLIC_STORY_PROJECTION;
+    return withScore ? { ...PUBLIC_STORY_PROJECTION, score: { $meta: 'textScore' as const } } : PUBLIC_STORY_PROJECTION;
 }
 
 function stripScore<T>(doc: T): T {
@@ -39,6 +31,7 @@ function stripScore<T>(doc: T): T {
 
 export interface ListStoriesParams {
     category?: string;
+    region?: string;
     q?: string;
     page: number;
     limit: number;
@@ -46,17 +39,16 @@ export interface ListStoriesParams {
 }
 
 export async function listPublicStories(params: ListStoriesParams) {
-    const { category, q, page, limit, date } = params;
+    const { category, region, q, page, limit, date } = params;
     const filter: FilterQuery<StoryAttrs> = publicStoryFilter();
 
     if (category) filter.category = category;
-
+    if (region) filter.region = region;
     if (date) {
         const start = new Date(`${date}T00:00:00.000Z`);
         const end = new Date(`${date}T23:59:59.999Z`);
         filter.publishedAt = { $gte: start, $lte: end };
     }
-
     if (q) filter.$text = { $search: q };
 
     const sort: Record<string, SortOrder | { $meta: string }> = q
@@ -66,12 +58,7 @@ export async function listPublicStories(params: ListStoriesParams) {
     const skip = (page - 1) * limit;
 
     const [docs, total] = await Promise.all([
-        Story.find(filter)
-            .select(publicProjection(Boolean(q)))
-            .sort(sort as never)
-            .skip(skip)
-            .limit(limit)
-            .lean(),
+        Story.find(filter).select(publicProjection(Boolean(q))).sort(sort as never).skip(skip).limit(limit).lean(),
         Story.countDocuments(filter),
     ]);
 
@@ -80,23 +67,26 @@ export async function listPublicStories(params: ListStoriesParams) {
 
     return {
         data,
-        pagination: {
-            page,
-            limit,
-            total,
-            totalPages,
-            hasMore: page < totalPages,
-        },
+        pagination: { page, limit, total, totalPages, hasMore: page < totalPages },
     };
 }
 
 async function findFeaturedOrLatest(): Promise<PublicStory | null> {
+    // 1. Try explicit Homepage Lead slot
+    const lead = await Story.findOne(publicStoryFilter({ homepageSlot: 'lead' }))
+        .sort({ publishedAt: -1 })
+        .select(publicProjection())
+        .lean();
+    if (lead) return lead as PublicStory;
+
+    // 2. Fallback to isFeatured
     const featured = await Story.findOne(publicStoryFilter({ isFeatured: true }))
         .sort({ publishedAt: -1 })
         .select(publicProjection())
         .lean();
     if (featured) return featured as PublicStory;
 
+    // 3. Fallback to newest
     const latest = await Story.findOne(publicStoryFilter())
         .sort({ publishedAt: -1, _id: -1 })
         .select(publicProjection())
@@ -110,63 +100,65 @@ export async function getFeaturedStory(): Promise<PublicStory | null> {
 
 export async function getTopStories(): Promise<PublicStory[]> {
     const featured = await findFeaturedOrLatest();
-    const filter = publicStoryFilter();
-    if (featured) {
-        filter._id = { $ne: (featured as { _id: unknown })._id };
-    }
-    const docs = await Story.find(filter)
+    const filter = publicStoryFilter({ isSponsored: { $ne: true } });
+    if (featured) filter._id = { $ne: (featured as { _id: unknown })._id };
+
+    // 1. First, prioritize explicitly pinned 'top' stories
+    const pinned = await Story.find({ ...filter, homepageSlot: 'top' })
         .sort({ publishedAt: -1, _id: -1 })
         .limit(5)
         .select(publicProjection())
         .lean();
-    return docs as PublicStory[];
+
+    if (pinned.length >= 5) return pinned as PublicStory[];
+
+    // 2. Fill the remaining slots with latest stories
+    const excludeIds = [...(featured ? [(featured as any)._id] : []), ...pinned.map((s) => s._id)];
+    const remaining = 5 - pinned.length;
+
+    const fillers = await Story.find({ ...filter, _id: { $nin: excludeIds } })
+        .sort({ publishedAt: -1, _id: -1 })
+        .limit(remaining)
+        .select(publicProjection())
+        .lean();
+
+    return [...pinned, ...fillers] as PublicStory[];
 }
 
 export async function getBreakingStories(): Promise<PublicStory[]> {
-    const docs = await Story.find(publicStoryFilter({ isBreaking: true }))
-        .sort({ publishedAt: -1, _id: -1 })
-        .limit(8)
-        .select(publicProjection())
-        .lean();
+    const now = new Date();
+    const filter = publicStoryFilter({
+        isBreaking: true,
+        $or: [
+            { breakingExpiresAt: { $gt: now } },
+            { breakingExpiresAt: null }
+        ]
+    });
+
+    const docs = await Story.find(filter).sort({ publishedAt: -1, _id: -1 }).limit(8).select(publicProjection()).lean();
     return docs as PublicStory[];
 }
 
 export async function getStoryBySlug(slug: string): Promise<PublicStory> {
-    const doc = await Story.findOne(publicStoryFilter({ slug }))
-        .select(publicProjection())
-        .lean();
+    const doc = await Story.findOne(publicStoryFilter({ slug })).select(publicProjection()).lean();
     if (!doc) throw ApiError.notFound('Story not found');
     return doc as PublicStory;
 }
 
 export async function getRelatedStories(slug: string): Promise<PublicStory[]> {
-    const story = await Story.findOne(publicStoryFilter({ slug }))
-        .select({ _id: 1, category: 1, tags: 1 })
-        .lean();
+    const story = await Story.findOne(publicStoryFilter({ slug })).select({ _id: 1, category: 1, tags: 1 }).lean();
     if (!story) throw ApiError.notFound('Story not found');
 
-    const base = publicStoryFilter({ category: story.category, _id: { $ne: story._id } });
-
-    const sameCategory = await Story.find(base)
-        .sort({ publishedAt: -1, _id: -1 })
-        .limit(4)
-        .select(publicProjection())
-        .lean();
-
+    const base = publicStoryFilter({ category: story.category, _id: { $ne: story._id }, isSponsored: { $ne: true } });
+    const sameCategory = await Story.find(base).sort({ publishedAt: -1, _id: -1 }).limit(4).select(publicProjection()).lean();
     if (sameCategory.length >= 4) return sameCategory as PublicStory[];
 
     const excludeIds = [story._id, ...sameCategory.map((s) => s._id)];
     const tags = Array.isArray(story.tags) ? story.tags : [];
-
     if (tags.length === 0) return sameCategory as PublicStory[];
 
-    const byTags = await Story.find(
-        publicStoryFilter({ tags: { $in: tags }, _id: { $nin: excludeIds } }),
-    )
-        .sort({ publishedAt: -1, _id: -1 })
-        .limit(4 - sameCategory.length)
-        .select(publicProjection())
-        .lean();
+    const byTags = await Story.find(publicStoryFilter({ tags: { $in: tags }, _id: { $nin: excludeIds }, isSponsored: { $ne: true } }))
+        .sort({ publishedAt: -1, _id: -1 }).limit(4 - sameCategory.length).select(publicProjection()).lean();
 
     return [...sameCategory, ...byTags] as PublicStory[];
 }
@@ -176,42 +168,54 @@ export async function getRelatedStories(slug: string): Promise<PublicStory[]> {
 export interface AdminListParams {
     status?: 'draft' | 'published';
     category?: string;
+    region?: string;
     q?: string;
     page: number;
     limit: number;
 }
 
 export async function adminListStories(params: AdminListParams) {
-    const { status, category, q, page, limit } = params;
+    const { status, category, region, q, page, limit } = params;
     const filter: FilterQuery<StoryAttrs> = {};
     if (status) filter.status = status;
     if (category) filter.category = category;
+    if (region) filter.region = region;
     if (q) filter.$text = { $search: q };
 
     const skip = (page - 1) * limit;
-
     const [data, total] = await Promise.all([
         Story.find(filter).sort({ publishedAt: -1, _id: -1 }).skip(skip).limit(limit).lean(),
         Story.countDocuments(filter),
     ]);
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
-
-    return {
-        data,
-        pagination: { page, limit, total, totalPages, hasMore: page < totalPages },
-    };
+    return { data, pagination: { page, limit, total, totalPages, hasMore: page < totalPages } };
 }
 
 export interface StoryInput {
     title: string;
+    seoTitle?: string;
     summary: string;
     content?: string;
+    author?: string;
     imageUrl: string;
     imageCredit?: string;
     sourceName: string;
     sourceUrl: string;
     category: string;
+    region?: 'Karnataka' | 'India' | 'Global';
+    city?: string;
+    companies?: string[];
+    fundingDetails?: {
+        amountINR?: string;
+        amountUSD?: string;
+        round?: string;
+        investors?: string[];
+    };
+    isSponsored?: boolean;
+    sponsorName?: string;
+    homepageSlot?: 'lead' | 'top' | 'none';
+    breakingExpiresAt?: Date | null;
     tags?: string[];
     status?: 'draft' | 'published';
     publishedAt?: Date;
@@ -230,7 +234,11 @@ async function assertCategoryExists(slug: string): Promise<void> {
 
 export async function adminCreateStory(input: StoryInput, userId: string) {
     await assertCategoryExists(input.category);
-    const story = new Story({ ...input, createdBy: userId });
+
+    // Remove undefined values so Mongoose applies the default publishedAt date
+    const data = Object.fromEntries(Object.entries(input).filter(([_, v]) => v !== undefined));
+
+    const story = new Story({ ...data, createdBy: userId });
     await story.save();
     return story.toObject();
 }
@@ -243,7 +251,10 @@ export async function adminUpdateStory(id: string, input: Partial<StoryInput>) {
         await assertCategoryExists(input.category);
     }
 
-    Object.assign(story, input);
+    // Remove undefined values so we don't overwrite the DB with null dates
+    const data = Object.fromEntries(Object.entries(input).filter(([_, v]) => v !== undefined));
+
+    Object.assign(story, data);
     await story.save();
     return story.toObject();
 }
