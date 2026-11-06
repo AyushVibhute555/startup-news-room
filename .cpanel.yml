@@ -1,0 +1,11 @@
+---
+deployment:
+  tasks:
+    # 1. Define the destination path (where your live site is)
+    - export DEPLOYPATH=/home2/peopleco/public_html/
+    
+    # 2. Create the directory if it doesn't exist (optional, but safe)
+    - /bin/mkdir -p $DEPLOYPATH
+    
+    # 3. Copy everything inside the frontend/dist folder to public_html
+    - /bin/cp -R frontend/dist/* $DEPLOYPATH
