@@ -1,6 +1,6 @@
 import { Translation } from '../models/Translation.js';
 
-// 1. The Startup Glossary: Protect words that Google Translate ruins
+// 1. The Startup Glossary
 const GLOSSARY: Record<string, string> = {
     'Series A': '[SERIES_A]',
     'Series B': '[SERIES_B]',
@@ -50,7 +50,8 @@ function restoreJargon(text: string, lang: string): string {
         },
     };
 
-    const langMap = nativeTerms[lang] || nativeTerms['hi'];
+    // 👇 FIX 1: Explicitly tell TypeScript this will always be a Record
+    const langMap = (nativeTerms[lang] || nativeTerms['hi']) as Record<string, string>;
 
     for (const [token, nativeWord] of Object.entries(langMap)) {
         restoredText = restoredText.replace(new RegExp(token, 'g'), nativeWord);
@@ -61,15 +62,12 @@ function restoreJargon(text: string, lang: string): string {
 export async function translateText(text: string, targetLang: string): Promise<string> {
     if (!text || targetLang === 'en') return text;
 
-    // 1. Check Database Cache First (Zero API calls if already translated)
     const cached = await Translation.findOne({ originalText: text, targetLang });
     if (cached) return cached.translatedText;
 
-    // 2. Protect Jargon
     const protectedText = protectJargon(text);
 
     try {
-        // 3. Free Google Translate Scraper Endpoint
         const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodeURIComponent(protectedText)}`;
 
         const res = await fetch(url, {
@@ -78,13 +76,13 @@ export async function translateText(text: string, targetLang: string): Promise<s
 
         if (!res.ok) return text;
 
-        const data = await res.json();
+        // 👇 FIX 2: Cast the response to 'any' so TypeScript allows us to map over the nested array
+        const data = (await res.json()) as any;
+
         const translatedRaw = data[0].map((item: any) => item[0]).join('');
 
-        // 4. Restore Jargon
         const finalTranslation = restoreJargon(translatedRaw, targetLang);
 
-        // 5. Save to Database for next time
         await Translation.create({
             originalText: text,
             targetLang,
