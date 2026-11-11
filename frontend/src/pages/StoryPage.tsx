@@ -19,6 +19,7 @@ import { useApi } from "@/lib/use-api";
 import { trackEvent } from "@/lib/analytics";
 import type { Story } from "@/types/story";
 import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
+import { cn } from "@/lib/utils";
 
 const shareBtn =
   "inline-flex h-11 w-11 items-center justify-center rounded-[4px] border border-border transition-colors duration-200 hover:border-foreground hover:text-signal";
@@ -184,11 +185,28 @@ export function StoryPage({ story }: { story: Story }) {
             <p>
               <TranslatedText text={story.summary} />
             </p>
+
+            {/* 👇 Rendering HTML Content (Tables, Bold, etc.) 👇 */}
             {story.content && (
-              <p className="mt-6">
-                <TranslatedText text={story.content} />
-              </p>
+              story.content.includes("<") ? (
+                <div
+                  className={cn(
+                    "mt-6 max-w-none text-foreground",
+                    "prose prose-sm sm:prose-base dark:prose-invert",
+                    "prose-table:w-full prose-table:border-collapse prose-table:text-sm",
+                    "prose-th:bg-muted prose-th:p-2 prose-th:border prose-th:border-border prose-th:text-left",
+                    "prose-td:p-2 prose-td:border prose-td:border-border"
+                  )}
+                  dangerouslySetInnerHTML={{ __html: story.content }}
+                />
+              ) : (
+                <p className="mt-6">
+                  <TranslatedText text={story.content} />
+                </p>
+              )
             )}
+            {/* 👆 END OF CONTENT UPDATE 👆 */}
+
             {story.tags.length > 0 && (
               <ul className="mt-8 flex flex-wrap gap-2">
                 {story.tags.map((tag) => (

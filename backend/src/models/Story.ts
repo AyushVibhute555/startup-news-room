@@ -1,7 +1,7 @@
 import mongoose, { Schema, type HydratedDocument, type InferSchemaType } from 'mongoose';
 import slugify from 'slugify';
 import { nanoid } from 'nanoid';
-import { stripHtml } from '../utils/sanitize.js';
+import { stripHtml, sanitizeContent } from '../utils/sanitize.js';
 
 const storySchema = new Schema(
     {
@@ -9,7 +9,8 @@ const storySchema = new Schema(
         seoTitle: { type: String, default: '', trim: true, maxlength: 180 },
         slug: { type: String, required: true, unique: true, trim: true, immutable: true },
         summary: { type: String, required: true, trim: true, minlength: 40, maxlength: 500 },
-        content: { type: String, default: '', trim: true, maxlength: 5000 },
+        // 👇 Increased maxlength to 50,000 for HTML tables
+        content: { type: String, default: '', trim: true, maxlength: 50000 },
         author: { type: String, default: 'Staff', trim: true, maxlength: 120 },
         imageUrl: { type: String, required: true, trim: true },
         imageCredit: { type: String, default: '', trim: true, maxlength: 200 },
@@ -71,7 +72,8 @@ storySchema.index(
 storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) {
     if (typeof this.title === 'string') this.title = stripHtml(this.title);
     if (typeof this.summary === 'string') this.summary = stripHtml(this.summary);
-    if (typeof this.content === 'string') this.content = stripHtml(this.content);
+    // 👇 Use sanitizeContent to allow tables in the body
+    if (typeof this.content === 'string') this.content = sanitizeContent(this.content);
 
     if (Array.isArray(this.tags)) {
         const cleaned = this.tags.map((t) => stripHtml(String(t)).trim().toLowerCase()).filter(Boolean);
@@ -83,7 +85,7 @@ storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) 
         this.companies = Array.from(new Set(cleaned));
     }
 
-    const text = [this.title, this.summary, this.content].filter(Boolean).join(' ');
+    const text = [this.title, this.summary, stripHtml(this.content)].filter(Boolean).join(' ');
     const words = text.split(/\s+/).filter(Boolean).length;
     this.readTime = Math.max(1, Math.ceil(words / 200));
 

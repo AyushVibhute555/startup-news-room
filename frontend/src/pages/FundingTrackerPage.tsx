@@ -25,39 +25,59 @@ export function FundingTrackerPage() {
                 ) : fundedStories.length === 0 ? (
                     <EmptyState title="No funding rounds yet" body="Check back soon for the latest raises." />
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border border-border">
+                    <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
                         <table className="w-full text-left text-sm">
-                            <thead className="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
+                            {/* 👇 Red Header matching the screenshot 👇 */}
+                            <thead className="bg-signal text-signal-foreground text-xs uppercase tracking-wider">
                                 <tr>
-                                    <th className="px-4 py-3 font-medium">Startup</th>
-                                    <th className="px-4 py-3 font-medium">Round</th>
-                                    <th className="px-4 py-3 font-medium">Amount (₹)</th>
-                                    <th className="px-4 py-3 font-medium">Amount ($)</th>
-                                    <th className="px-4 py-3 font-medium">Lead Investors</th>
-                                    <th className="px-4 py-3 font-medium">City</th>
+                                    <th className="px-5 py-4 font-bold">Startup</th>
+                                    <th className="px-5 py-4 font-bold">Sector</th>
+                                    <th className="px-5 py-4 font-bold">Funding</th>
+                                    <th className="px-5 py-4 font-bold">Round</th>
+                                    <th className="px-5 py-4 font-bold">Lead Investors</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-border">
+                            <tbody className="divide-y divide-border bg-background">
                                 {fundedStories.map((story) => (
-                                    <tr key={story._id} className="transition-colors hover:bg-muted/20">
-                                        <td className="px-4 py-4 font-semibold text-foreground">
+                                    <tr key={story._id} className="transition-colors hover:bg-muted/30">
+
+                                        {/* Startup Name (Pulls from Companies array, falls back to first word of Title) */}
+                                        <td className="px-5 py-4 font-bold text-foreground">
                                             <StoryLink story={story}>
                                                 <span className="link-underline">
-                                                    {story.companies && story.companies.length > 0 ? story.companies[0] : story.title.slice(0, 30) + "..."}
+                                                    {story.companies && story.companies.length > 0
+                                                        ? story.companies[0]
+                                                        : story.title.split(" ")[0]}
                                                 </span>
                                             </StoryLink>
                                         </td>
-                                        <td className="px-4 py-4">
-                                            <span className="inline-flex items-center rounded bg-signal/10 px-2 py-0.5 text-xs font-medium text-signal">
-                                                {story.fundingDetails?.round}
-                                            </span>
+
+                                        {/* Sector (Uses the Category) */}
+                                        <td className="px-5 py-4 text-muted-foreground capitalize">
+                                            {story.category}
                                         </td>
-                                        <td className="px-4 py-4 font-medium">{story.fundingDetails?.amountINR || "-"}</td>
-                                        <td className="px-4 py-4 text-muted-foreground">{story.fundingDetails?.amountUSD || "-"}</td>
-                                        <td className="px-4 py-4 text-muted-foreground">
-                                            {story.fundingDetails?.investors?.join(", ") || "-"}
+
+                                        {/* Funding Amount (Prefers INR, falls back to USD, then Undisclosed) */}
+                                        <td className="px-5 py-4 font-medium text-foreground">
+                                            {story.fundingDetails?.amountINR
+                                                ? story.fundingDetails.amountINR
+                                                : story.fundingDetails?.amountUSD
+                                                    ? story.fundingDetails.amountUSD
+                                                    : "Undisclosed"}
                                         </td>
-                                        <td className="px-4 py-4 text-muted-foreground">{story.city || story.region || "-"}</td>
+
+                                        {/* Round */}
+                                        <td className="px-5 py-4 text-muted-foreground">
+                                            {story.fundingDetails?.round}
+                                        </td>
+
+                                        {/* Lead Investors */}
+                                        <td className="px-5 py-4 text-muted-foreground">
+                                            {story.fundingDetails?.investors && story.fundingDetails.investors.length > 0
+                                                ? story.fundingDetails.investors.join(", ")
+                                                : "Undisclosed"}
+                                        </td>
+
                                     </tr>
                                 ))}
                             </tbody>
