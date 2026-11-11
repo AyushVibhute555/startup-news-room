@@ -2,4 +2,4 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home2/peopleco/public_html/startupnewsroom/
-    - /bin/cp -R frontend/dist/* $DEPLOYPATH
+    - /bin/cp -R frontend/dist/. $DEPLOYPATH
