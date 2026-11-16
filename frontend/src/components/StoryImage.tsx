@@ -2,7 +2,7 @@ import { useState } from "react";
 import { LogoMark } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
-export type ImageRatio = "16/9" | "16/10" | "3/2" | "4/3" | "1/1";
+export type ImageRatio = "16/9" | "16/10" | "3/2" | "4/3" | "1/1" | "1.91/1";
 
 interface Props {
   src: string;
@@ -31,26 +31,28 @@ export function StoryImage({
   const h =
     ratio === "16/9"
       ? 675
-      : ratio === "3/2"
-        ? 800
-        : ratio === "4/3"
-          ? 900
-          : ratio === "1/1"
-            ? 1200
-            : 750;
+      : ratio === "1.91/1"
+        ? 630
+        : ratio === "3/2"
+          ? 800
+          : ratio === "4/3"
+            ? 900
+            : ratio === "1/1"
+              ? 1200
+              : 750;
 
   const isPriority = priority ?? eager ?? false;
 
   return (
     <div
       className={cn(
-        "relative w-full overflow-hidden rounded-[6px] bg-logo-grey ring-1 ring-black/5 dark:ring-white/10",
+        "relative w-full overflow-hidden rounded-[6px] bg-black ring-1 ring-black/5 dark:ring-white/10",
         className,
       )}
       style={{ aspectRatio: ratio }}
     >
       {badge && (
-        <span className="absolute left-2.5 top-2.5 z-10 inline-flex items-center rounded-[3px] bg-signal px-2 py-1 text-[12px] font-semibold leading-none text-signal-foreground">
+        <span className="absolute left-2.5 top-2.5 z-20 inline-flex items-center rounded-[3px] bg-signal px-2 py-1 text-[12px] font-semibold leading-none text-signal-foreground">
           {badge}
         </span>
       )}
@@ -61,7 +63,17 @@ export function StoryImage({
         </div>
       ) : (
         <>
-          {!loaded && <div className="skeleton absolute inset-0" aria-hidden />}
+          {!loaded && <div className="skeleton absolute inset-0 z-0" aria-hidden />}
+
+          {/* 👇 Blurred Background to fill empty space 👇 */}
+          <img
+            src={src}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-xl"
+          />
+
+          {/* 👇 Main Image (object-contain prevents cropping) 👇 */}
           <img
             src={src}
             alt={alt}
@@ -73,7 +85,7 @@ export function StoryImage({
             onLoad={() => setLoaded(true)}
             onError={() => setFailed(true)}
             className={cn(
-              "h-full w-full object-cover transition-opacity duration-300",
+              "relative z-10 h-full w-full object-contain transition-opacity duration-300",
               loaded ? "opacity-100" : "opacity-0",
               zoom && "transition-transform duration-[600ms] ease-out group-hover:scale-[1.03]",
             )}

@@ -173,7 +173,7 @@ export function StoryEditorPage() {
             sponsorName: form.sponsorName.trim(),
             homepageSlot: form.homepageSlot,
 
-            // 👇 SEND UNDEFINED IF BLANK SO THE BACKEND DEFAULTS TO CURRENT TIME
+            // SEND UNDEFINED IF BLANK SO THE BACKEND DEFAULTS TO CURRENT TIME
             breakingExpiresAt: form.breakingExpiresAt ? fromLocalInput(form.breakingExpiresAt) : undefined,
             publishedAt: form.publishedAt ? fromLocalInput(form.publishedAt) : undefined,
 
@@ -288,9 +288,19 @@ export function StoryEditorPage() {
                     </div>
                 </Field>
 
-                <Field id="content" label="Content (Optional)" hint="Up to 5000 characters">
-                    <textarea id="content" rows={6} value={form.content} onChange={(e) => update("content", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
+                {/* 👇 UPDATED CONTENT FIELD 👇 */}
+                <Field id="content" label="Content (Optional)" hint="Up to 50,000 characters (HTML allowed)">
+                    <textarea
+                        id="content"
+                        rows={12}
+                        maxLength={50000}
+                        value={form.content}
+                        onChange={(e) => update("content", e.target.value)}
+                        className="mt-1 w-full rounded border border-border bg-background px-3 py-2 font-mono text-sm"
+                        placeholder="<p>Paragraph text here...</p>&#10;<table>...</table>"
+                    />
                 </Field>
+                {/* 👆 END OF UPDATE 👆 */}
             </section>
 
             {/* MEDIA */}

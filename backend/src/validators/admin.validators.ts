@@ -19,7 +19,7 @@ export const createStorySchema = z
         title: z.string().trim().min(10).max(180),
         seoTitle: z.string().trim().max(180).optional(),
         summary: z.string().trim().min(40).max(500),
-        content: z.string().trim().max(5000).optional(),
+        content: z.string().trim().max(50000).optional(),
         author: z.string().trim().max(120).optional(),
         imageUrl: httpsUrl,
         imageCredit: z.string().trim().max(200).optional(),

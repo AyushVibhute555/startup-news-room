@@ -69,7 +69,7 @@ router.post('/contact', contactLimiter, validate({ body: contactSchema }), conta
 
 // Translation Route
 const translateSchema = z.object({
-    text: z.string().min(1).max(5000),
+    text: z.string().min(1).max(50000),
     targetLang: z.enum(['hi', 'kn', 'te']),
 }).strict();
 

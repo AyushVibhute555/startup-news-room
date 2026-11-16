@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { Linkedin, Instagram, Youtube, Menu, Search, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
@@ -26,14 +26,11 @@ export const HEADER_VARS: CSSProperties = {
   color: INK,
 };
 
-// Added Funding Tracker to NAV
 const NAV = [
   { slug: "", label: "All" },
   ...categories.map((c) => ({ slug: c.slug, label: c.name })),
   { slug: "/funding", label: "Funding Tracker", isCustom: true }
 ];
-
-const REGIONS = ["Karnataka", "India", "Global"];
 
 function UtilityBar() {
   const { t } = useTranslation();
@@ -80,9 +77,6 @@ export function Header() {
   const active = useActiveSlug();
   const reduce = useReducedMotion();
   const { scrollY, scrollYProgress } = useScroll();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const currentRegion = searchParams.get("region") || "";
 
   const [hidden, setHidden] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -120,13 +114,6 @@ export function Header() {
     });
   }, [scrollY, reduce]);
 
-  function handleRegionChange(region: string) {
-    const newParams = new URLSearchParams(searchParams);
-    if (region === "") newParams.delete("region");
-    else newParams.set("region", region);
-    setSearchParams(newParams);
-  }
-
   return (
     <>
       <a href="#main" className="sr-only z-[70] bg-[#101312] px-4 py-3 text-[#F2F4F3] focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
@@ -156,7 +143,6 @@ export function Header() {
             </nav>
 
             <div className="flex shrink-0 items-center gap-1.5">
-              <LanguageSwitcher className="text-[#101312] hover:bg-black/5" />
               <button type="button" aria-label={t("header.search")} onClick={() => setSearchOpen(true)} className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#101312] transition-colors duration-200 hover:bg-black/5 hover:text-signal">
                 <Search className="h-4 w-4" />
               </button>
@@ -201,33 +187,21 @@ export function Header() {
             </div>
           </Container>
 
-          {/* 👇 REGION SWITCH ROW 👇 */}
+          {/* 👇 HORIZONTAL LANGUAGE BAR 👇 */}
           <div className="border-t border-[rgba(16,19,18,0.06)] bg-[#F2F4F3]">
-            <Container className="flex h-9 items-center justify-center gap-6 sm:justify-start">
-              <span className="hidden text-[11px] font-bold uppercase tracking-wider text-[#565C5A] sm:inline">Edition:</span>
-              <div className="flex h-full items-center gap-4">
-                {REGIONS.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => handleRegionChange(r)}
-                    className={cn(
-                      "font-label h-full text-[13px] transition-colors duration-200",
-                      currentRegion === r ? "font-bold text-signal border-b-2 border-signal" : "text-[#565C5A] hover:text-[#101312]"
-                    )}
-                  >
-                    {r}
-                  </button>
-                ))}
-                {currentRegion && (
-                  <button onClick={() => handleRegionChange("")} className="text-[11px] text-muted-foreground underline hover:text-[#101312]">Clear</button>
-                )}
-              </div>
+            <Container className="flex h-9 items-center justify-start gap-4">
+              <span className="hidden text-[11px] font-bold uppercase tracking-wider text-[#565C5A] sm:inline">
+                Language:
+              </span>
+              <LanguageSwitcher />
             </Container>
           </div>
+          {/* 👆 END OF LANGUAGE BAR 👆 */}
 
           <motion.div aria-hidden className="pointer-events-none absolute left-0 right-0 top-full h-6" style={{ background: "linear-gradient(to bottom, rgba(16, 19, 18, 0.10), transparent)", opacity: shadowOpacity }} />
         </motion.div>
       </motion.header>
+
       <SearchOverlay open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );

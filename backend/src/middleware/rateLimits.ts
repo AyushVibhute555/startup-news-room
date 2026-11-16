@@ -1,3 +1,4 @@
+// backend/src/middleware/rateLimits.ts
 import rateLimit from 'express-rate-limit';
 import { isTest } from '../config/env.js';
 
@@ -5,7 +6,7 @@ const skip = () => isTest;
 
 export const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 100,
+    limit: 2000, // 👈 Increased from 100 to 2000
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     skip,
@@ -14,7 +15,7 @@ export const globalLimiter = rateLimit({
 
 export const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 5,
+    limit: 10, // 👈 Increased from 5
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     skip,
@@ -29,7 +30,7 @@ export const loginLimiter = rateLimit({
 
 export const newsletterLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    limit: 5,
+    limit: 10, // 👈 Increased from 5
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     skip,
@@ -38,7 +39,7 @@ export const newsletterLimiter = rateLimit({
 
 export const contactLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    limit: 5,
+    limit: 10, // 👈 Increased from 5
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     skip,

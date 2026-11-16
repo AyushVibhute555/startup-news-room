@@ -1,3 +1,4 @@
+// src/pages/StoryPage.tsx
 import { Link, useParams } from "react-router-dom";
 import { ArrowUpRight, Check, Link2, Linkedin, MessageCircle, Twitter } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -8,7 +9,7 @@ import { btnPrimary } from "@/components/Buttons";
 import { Container } from "@/components/Container";
 import { ScrollProgress } from "@/components/Motion";
 import { TranslatedText } from "@/components/TranslatedText";
-import { Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
+import { RevealGroup, RevealItem } from "@/components/Reveal";
 import { CategoryTag, SectionLabel } from "@/components/StoryBits";
 import { StoryCard } from "@/components/StoryCard";
 import { StoryImage } from "@/components/StoryImage";
@@ -19,6 +20,7 @@ import { useApi } from "@/lib/use-api";
 import { trackEvent } from "@/lib/analytics";
 import type { Story } from "@/types/story";
 import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
+import { useTranslatedText } from "@/i18n/hooks"; // 👈 Import this
 import { cn } from "@/lib/utils";
 
 const shareBtn =
@@ -86,7 +88,12 @@ export function StoryPage({ story }: { story: Story }) {
   const { t } = useTranslation();
   const related = useApi(() => getRelatedStories(story.slug), [story.slug]);
 
+  // 👇 Translate the HTML content here 👇
+  const translatedContent = useTranslatedText(story.content || "");
+
   const pageUrl = `https://startup-news-room.vercel.app/news/${story.slug}`;
+  const pageTitle = story.seoTitle || story.title;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -94,7 +101,7 @@ export function StoryPage({ story }: { story: Story }) {
     image: [story.imageUrl],
     datePublished: story.publishedAt,
     dateModified: story.publishedAt,
-    author: [{ "@type": "Organization", name: story.sourceName }],
+    author: [{ "@type": "Organization", name: "SNR Desk" }],
     publisher: {
       "@type": "Organization",
       name: "Startup News Room",
@@ -106,13 +113,13 @@ export function StoryPage({ story }: { story: Story }) {
   return (
     <>
       <Helmet>
-        <title>{story.title} | Startup News Room</title>
+        <title>{pageTitle} | Startup News Room</title>
         <meta name="description" content={story.summary} />
         <link rel="canonical" href={pageUrl} />
 
         {/* Open Graph */}
         <meta property="og:type" content="article" />
-        <meta property="og:title" content={story.title} />
+        <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={story.summary} />
         <meta property="og:image" content={story.imageUrl} />
         <meta property="og:url" content={pageUrl} />
@@ -120,7 +127,7 @@ export function StoryPage({ story }: { story: Story }) {
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={story.title} />
+        <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={story.summary} />
         <meta name="twitter:image" content={story.imageUrl} />
 
@@ -147,7 +154,8 @@ export function StoryPage({ story }: { story: Story }) {
                 </li>
               </ol>
             </nav>
-            <Reveal>
+
+            <div>
               <CategoryTag
                 slug={story.category}
                 breaking={story.isBreaking}
@@ -159,10 +167,11 @@ export function StoryPage({ story }: { story: Story }) {
               <p className="mt-5 text-[1.1875rem] leading-relaxed text-muted-foreground">
                 <TranslatedText text={story.summary} />
               </p>
-            </Reveal>
+            </div>
+
             <div className="mt-8 flex flex-col gap-4 border-y border-border py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">{story.sourceName}</span>
+                <span className="font-semibold text-foreground">SNR Desk</span>
                 <span aria-hidden>·</span>
                 <time dateTime={story.publishedAt} suppressHydrationWarning>
                   {formatDate(story.publishedAt)}
@@ -182,30 +191,19 @@ export function StoryPage({ story }: { story: Story }) {
           </figure>
 
           <div className="mx-auto mt-10 max-w-[680px] text-[1.0625rem] leading-[1.75]">
-            <p>
-              <TranslatedText text={story.summary} />
-            </p>
-
-            {/* 👇 Rendering HTML Content (Tables, Bold, etc.) 👇 */}
+            {/* 👇 Render the translated HTML content 👇 */}
             {story.content && (
-              story.content.includes("<") ? (
-                <div
-                  className={cn(
-                    "mt-6 max-w-none text-foreground",
-                    "prose prose-sm sm:prose-base dark:prose-invert",
-                    "prose-table:w-full prose-table:border-collapse prose-table:text-sm",
-                    "prose-th:bg-muted prose-th:p-2 prose-th:border prose-th:border-border prose-th:text-left",
-                    "prose-td:p-2 prose-td:border prose-td:border-border"
-                  )}
-                  dangerouslySetInnerHTML={{ __html: story.content }}
-                />
-              ) : (
-                <p className="mt-6">
-                  <TranslatedText text={story.content} />
-                </p>
-              )
+              <div
+                className={cn(
+                  "max-w-none text-foreground",
+                  "prose prose-sm sm:prose-base dark:prose-invert",
+                  "prose-table:w-full prose-table:border-collapse prose-table:text-sm",
+                  "prose-th:bg-muted prose-th:p-2 prose-th:border prose-th:border-border prose-th:text-left",
+                  "prose-td:p-2 prose-td:border prose-td:border-border"
+                )}
+                dangerouslySetInnerHTML={{ __html: translatedContent }}
+              />
             )}
-            {/* 👆 END OF CONTENT UPDATE 👆 */}
 
             {story.tags.length > 0 && (
               <ul className="mt-8 flex flex-wrap gap-2">

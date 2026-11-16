@@ -1,82 +1,47 @@
 import { useTranslation } from "react-i18next";
-import { Check, Globe } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { SUPPORTED_LANGUAGES } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 export function LanguageSwitcher({ className }: { className?: string }) {
-    const { i18n, t } = useTranslation();
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    const { i18n } = useTranslation();
+    const currentLang = i18n.language;
 
-    useEffect(() => {
-        function onClick(e: MouseEvent) {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const handleLanguageChange = (code: string) => {
+        void i18n.changeLanguage(code);
+        const url = new URL(window.location.href);
+        if (code === "en") {
+            url.searchParams.delete("lang");
+        } else {
+            url.searchParams.set("lang", code);
         }
-        document.addEventListener("mousedown", onClick);
-        return () => document.removeEventListener("mousedown", onClick);
-    }, []);
-
-    const current =
-        SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language) ?? SUPPORTED_LANGUAGES[0];
+        window.history.replaceState({}, "", url.toString());
+    };
 
     return (
-        <div className="relative" ref={ref}>
-            <button
-                type="button"
-                onClick={() => setOpen((o) => !o)}
-                aria-label={t("header.changeLanguage")}
-                aria-expanded={open}
-                aria-haspopup="listbox"
-                className={cn(
-                    "inline-flex items-center gap-1.5 rounded px-2 py-1.5 text-sm transition-colors",
-                    className ?? "text-muted-foreground hover:text-foreground"
-                )}
-            >
-                <Globe className="h-4 w-4" />
-                <span className="hidden sm:inline">{current.nativeName}</span>
-            </button>
+        <div className={cn("flex items-center gap-2.5 text-[13px]", className)}>
+            {SUPPORTED_LANGUAGES.map((lang, index) => (
+                <div key={lang.code} className="flex items-center gap-2.5">
+                    <button
+                        type="button"
+                        onClick={() => handleLanguageChange(lang.code)}
+                        className={cn(
+                            "transition-colors duration-200",
+                            currentLang === lang.code
+                                ? "font-bold text-signal"
+                                : "text-[#565C5A] hover:text-[#101312]"
+                        )}
+                    >
+                        {lang.nativeName}
+                    </button>
 
-            {open && (
-                <ul
-                    role="listbox"
-                    className="absolute right-0 top-full z-50 mt-1 min-w-[160px] overflow-hidden rounded border border-border bg-background text-foreground shadow-lg"
-                >
-                    {SUPPORTED_LANGUAGES.map((lang) => {
-                        const selected = i18n.language === lang.code;
-                        return (
-                            <li key={lang.code} role="option" aria-selected={selected}>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        // 1. Change the language
-                                        void i18n.changeLanguage(lang.code);
-
-                                        // 2. Update the URL so it can be copied and shared
-                                        const url = new URL(window.location.href);
-                                        if (lang.code === "en") {
-                                            // Keep English URLs clean by removing the ?lang= param
-                                            url.searchParams.delete("lang");
-                                        } else {
-                                            // Add ?lang=kn, ?lang=hi, etc.
-                                            url.searchParams.set("lang", lang.code);
-                                        }
-                                        // replaceState updates the URL without reloading the page
-                                        window.history.replaceState({}, "", url.toString());
-
-                                        // 3. Close the dropdown
-                                        setOpen(false);
-                                    }}
-                                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
-                                >
-                                    <span>{lang.nativeName}</span>
-                                    {selected && <Check className="h-4 w-4 text-signal" />}
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
+                    {/* Subtle dot separator */}
+                    {index < SUPPORTED_LANGUAGES.length - 1 && (
+                        <span className="text-[#101312]/20 text-[10px]" aria-hidden>
+                            •
+                        </span>
+                    )}
+                </div>
+            ))}
         </div>
     );
-}   
+}
