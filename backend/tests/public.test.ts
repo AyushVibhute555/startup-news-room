@@ -71,7 +71,47 @@ describe('public story visibility', () => {
 
         const res = await request(app).get('/api/v1/stories?category=fintech&limit=50');
         expect(res.status).toBe(200);
-        expect(res.body.data.every((s: { category: string }) => s.category === 'fintech')).toBe(true);
+        expect(
+            res.body.data.every(
+                (s: { category?: string; categories?: string[] }) =>
+                    s.category === 'fintech' || s.categories?.includes('fintech'),
+            ),
+        ).toBe(true);
+    });
+
+    it('includes both legacy and multi-category stories in category pages and counts', async () => {
+        const categorySlug = 'ipo-markets-multi-test';
+        await ensureCategory(categorySlug, 'IPO Markets test', 10);
+        await Story.create(
+            storyPayload({
+                title: 'Legacy Single Category Story For Multi Category Test',
+                category: categorySlug,
+            }),
+        );
+        await Story.create(
+            storyPayload({
+                title: 'Multi Category Story For Category Compatibility Test',
+                categories: [categorySlug, 'ai'],
+            }),
+        );
+
+        const stories = await request(app).get(
+            `/api/v1/stories?category=${categorySlug}&limit=50`,
+        );
+        expect(stories.status).toBe(200);
+        expect(stories.body.pagination.total).toBe(2);
+        expect(stories.body.data.map((story: { title: string }) => story.title)).toEqual(
+            expect.arrayContaining([
+                'Legacy Single Category Story For Multi Category Test',
+                'Multi Category Story For Category Compatibility Test',
+            ]),
+        );
+
+        const categories = await request(app).get('/api/v1/categories');
+        const result = categories.body.data.find(
+            (category: { slug: string }) => category.slug === categorySlug,
+        );
+        expect(result.storyCount).toBe(2);
     });
 
     it('searches using the text index', async () => {

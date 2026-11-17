@@ -1,5 +1,5 @@
 // src/admin/lib/api.ts
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api/v1";
+const API_URL = import.meta.env["VITE_API_URL"] ?? "http://localhost:4000/api/v1";
 
 // ── Auth token (module-level, memory only — XSS-safe) ───────────────────
 let currentToken: string | null = null;
@@ -17,6 +17,13 @@ export class AdminApiError extends Error {
         super(message);
         this.name = "AdminApiError";
     }
+}
+
+export function adminErrorMessage(error: unknown, fallback: string): string {
+    if (!(error instanceof AdminApiError)) return fallback;
+    if (error.status === 401) return "Session expired. Please sign in again.";
+    if (error.code === "VALIDATION_ERROR") return "Please check the story details and try again.";
+    return error.message;
 }
 
 // ── Wire types ──────────────────────────────────────────────────────────
@@ -37,9 +44,10 @@ export interface AdminStory {
     author: string;
     imageUrl: string;
     imageCredit: string;
-    sourceName: string;
-    sourceUrl: string;
+    sourceName?: string;
+    sourceUrl?: string;
     category: string;
+    categories?: string[];
     region: "Karnataka" | "India" | "Global";
     city: string;
     companies: string[];
@@ -150,6 +158,9 @@ async function adminFetch(path: string, opts: FetchOpts = {}): Promise<Response>
     if (res.status === 401 && !noRefresh) {
         const ok = await tryRefresh();
         if (ok) res = await doFetch();
+        if (res.status === 401 && typeof window !== "undefined") {
+            window.dispatchEvent(new Event("admin:session-expired"));
+        }
     }
 
     return res;

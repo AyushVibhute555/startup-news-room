@@ -8,11 +8,12 @@ import { TranslatedText } from "@/components/TranslatedText";
 import { StoryLink, StoryMeta } from "@/components/StoryBits";
 import { StoryCard } from "@/components/StoryCard";
 import { EmptyState, ErrorState, GridSkeleton, ListSkeleton } from "@/components/States";
-import { getStories } from "@/lib/api";
+import { getCategories, getStories } from "@/lib/api";
 import { dayLabel, formatClock } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
 import { categories } from "@/data/categories";
 import type { Category, Story } from "@/types/story";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 function StoryGrid({ stories }: { stories: Story[] }) {
   return (
@@ -79,7 +80,10 @@ function CategoryPageInner({ category }: { category: Category }) {
 
   return (
     <Container className="section-y !pt-12">
-      <PageTitle eyebrow={t("category.eyebrow")} title={t(`categories.${category.slug}`)}>
+      <PageTitle
+        eyebrow={t("category.eyebrow")}
+        title={getCategoryLabel(category.slug, t, category.name)}
+      >
         {category.description}
       </PageTitle>
       <div className="mt-12">
@@ -120,7 +124,31 @@ function CategoryPageInner({ category }: { category: Category }) {
 export function CategoryPage() {
   const { t } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
-  const category = categories.find((c) => c.slug === slug);
+  const {
+    data: liveCategories,
+    loading: categoriesLoading,
+    error: categoriesError,
+    retry: retryCategories,
+  } = useApi(getCategories, []);
+  const category =
+    liveCategories?.find((c) => c.slug === slug) ??
+    categories.find((c) => c.slug === slug);
+
+  if (!category && categoriesLoading) {
+    return (
+      <Container className="section-y !pt-12">
+        <GridSkeleton count={6} />
+      </Container>
+    );
+  }
+
+  if (!category && categoriesError) {
+    return (
+      <Container className="section-y !pt-12">
+        <ErrorState onRetry={retryCategories} />
+      </Container>
+    );
+  }
 
   if (!category) {
     return (
@@ -184,7 +212,7 @@ export function ArchivePage() {
                       <StoryMeta story={s} className="mt-1" />
                     </div>
                     <span className="hidden pt-1.5 text-xs font-label uppercase tracking-wide text-muted-foreground sm:inline-flex">
-                      {t(`categories.${s.category}`)}
+                      {getCategoryLabel(s.categories?.[0] ?? "news", t)}
                     </span>
                   </li>
                 ))}

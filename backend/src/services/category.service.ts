@@ -7,7 +7,24 @@ export async function listPublicCategories() {
         Category.find().sort({ order: 1, name: 1 }).lean(),
         Story.aggregate<{ _id: string; count: number }>([
             { $match: { status: 'published', publishedAt: { $lte: new Date() } } },
-            { $group: { _id: '$category', count: { $sum: 1 } } },
+            {
+                $project: {
+                    categories: {
+                        $setUnion: [
+                            { $cond: [{ $isArray: '$categories' }, '$categories', []] },
+                            {
+                                $cond: [
+                                    { $ne: [{ $ifNull: ['$category', ''] }, ''] },
+                                    ['$category'],
+                                    [],
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+            { $unwind: '$categories' },
+            { $group: { _id: '$categories', count: { $sum: 1 } } },
         ]),
     ]);
 
@@ -59,7 +76,12 @@ export async function deleteCategory(id: string) {
     const category = await Category.findById(id).lean();
     if (!category) throw ApiError.notFound('Category not found');
 
-    const inUse = await Story.exists({ category: category.slug });
+    const inUse = await Story.exists({
+        $or: [
+            { categories: category.slug },
+            { category: category.slug },
+        ],
+    });
     if (inUse) {
         throw ApiError.conflict('Cannot delete a category that still has stories');
     }

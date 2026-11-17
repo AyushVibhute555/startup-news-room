@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { stories as storiesApi, type AdminStory, type AdminCategory, categories as categoriesApi, AdminApiError } from "../lib/api";
+import { adminErrorMessage, stories as storiesApi, type AdminStory, type AdminCategory, categories as categoriesApi } from "../lib/api";
 
 const PAGE_LIMIT = 20;
 
@@ -18,21 +18,30 @@ export function StoriesListPage() {
     const [busyId, setBusyId] = useState<string | null>(null);
 
     useEffect(() => {
-        categoriesApi.list().then(setCategories).catch(() => undefined);
+        categoriesApi.list().then(setCategories).catch((err) => {
+            toast.error(adminErrorMessage(err, "Could not load categories"));
+        });
     }, []);
 
     useEffect(() => {
         let alive = true;
         setLoading(true);
+        const params = {
+            ...(status ? { status } : {}),
+            ...(category ? { category } : {}),
+            ...(q ? { q } : {}),
+            page,
+            limit: PAGE_LIMIT,
+        };
         storiesApi
-            .list({ status: status || undefined, category: category || undefined, q: q || undefined, page, limit: PAGE_LIMIT })
+            .list(params)
             .then((res) => {
                 if (!alive) return;
                 setData(res.data);
                 setPagination(res.pagination);
             })
             .catch((err) => {
-                toast.error(err instanceof AdminApiError ? err.message : "Could not load stories");
+                toast.error(adminErrorMessage(err, "Could not load stories"));
             })
             .finally(() => alive && setLoading(false));
         return () => { alive = false; };
@@ -45,11 +54,17 @@ export function StoriesListPage() {
             await storiesApi.remove(story._id);
             toast.success("Story deleted");
             // refresh
-            const res = await storiesApi.list({ status: status || undefined, category: category || undefined, q: q || undefined, page, limit: PAGE_LIMIT });
+            const res = await storiesApi.list({
+                ...(status ? { status } : {}),
+                ...(category ? { category } : {}),
+                ...(q ? { q } : {}),
+                page,
+                limit: PAGE_LIMIT,
+            });
             setData(res.data);
             setPagination(res.pagination);
         } catch (err) {
-            toast.error(err instanceof AdminApiError ? err.message : "Delete failed");
+            toast.error(adminErrorMessage(err, "Delete failed"));
         } finally {
             setBusyId(null);
         }
@@ -108,7 +123,7 @@ export function StoriesListPage() {
                                 <th className="px-3 py-2 text-left font-medium">Title</th>
                                 <th className="px-3 py-2 text-left font-medium">Category</th>
                                 <th className="px-3 py-2 text-left font-medium">Status</th>
-                                <th className="px-3 py-2 text-left font-medium">Published</th>
+                                <th className="px-3 py-2 text-left font-medium">News Date</th>
                                 <th className="px-3 py-2 text-left font-medium">Flags</th>
                                 <th className="px-3 py-2"></th>
                             </tr>

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { BreakingBar } from "@/components/BreakingBar";
@@ -15,11 +15,12 @@ import { StoryCard } from "@/components/StoryCard";
 import { StoryImage } from "@/components/StoryImage";
 import { StoryRow } from "@/components/StoryRow";
 import { TopNewsCarousel } from "@/components/TopNewsCarousel";
-import { categories } from "@/data/categories";
+import { categories as staticCategories } from "@/data/categories"; // Fallback for category blocks
 import { getBreakingStories, getFeaturedStory, getStories, getTopStories } from "@/lib/api";
 import { formatTimeShort } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
 import type { Story } from "@/types/story";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 function LeadStory({ story }: { story: Story }) {
   const { t } = useTranslation();
@@ -29,13 +30,18 @@ function LeadStory({ story }: { story: Story }) {
     transition: { duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] },
   });
 
+  // Safe fallback for categories
+  const primaryCategory = story.categories?.[0] || "news";
+
   return (
     <article className="group relative flex flex-col">
       <motion.div {...step(0)}>
         <StoryImage src={story.imageUrl} alt={story.title} ratio="16/9" priority badge={story.isBreaking ? t("breaking") : undefined} />
       </motion.div>
       <motion.div {...step(1)} className="mt-4">
-        <span className="font-label text-xs uppercase tracking-wide text-muted-foreground">{t(`categories.${story.category}`)}</span>
+        <span className="font-label text-xs uppercase tracking-wide text-muted-foreground">
+          {getCategoryLabel(primaryCategory, t)}
+        </span>
       </motion.div>
       <motion.div {...step(2)} className="mt-2.5">
         <h2 className="headline text-[clamp(1.75rem,3.2vw,2.75rem)] font-bold leading-[1.12] tracking-[-0.02em] text-foreground">
@@ -105,11 +111,13 @@ function LatestUpdatesFeed({ stories }: { stories: Story[] }) {
 
 export function HomePage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const region = searchParams.get("region") || undefined;
 
   const breaking = useApi(getBreakingStories, []);
   const featured = useApi(getFeaturedStory, []);
   const top = useApi(getTopStories, []);
-  const latest = useApi(() => getStories({ limit: 50 }), []);
+  const latest = useApi(() => getStories({ limit: 50, region }), [region]);
 
   const { pool, updates } = useMemo(() => {
     const allLatest = latest.data?.items ?? [];
@@ -141,7 +149,7 @@ export function HomePage() {
     ? pool.slice(30, 35)
     : (latest.data?.items ?? []).slice(0, 5);
 
-  const topicCategories = categories.slice(0, 4);
+  const topicCategories = staticCategories.slice(0, 4);
 
   return (
     <>

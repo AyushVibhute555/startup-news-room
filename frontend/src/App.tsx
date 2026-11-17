@@ -8,7 +8,7 @@ import { ArchivePage, CategoryPage, SearchPage } from "@/pages/ListingPages";
 import { StoryPageWrapper } from "@/pages/StoryPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { AdminRoot } from "@/admin/AdminRoot";
-import { FundingTrackerPage } from "@/pages/FundingTrackerPage"; // 👈 Import
+import { LatestUpdatesPage } from "@/pages/LatestUpdatesPage";
 
 export function App() {
   const location = useLocation();
@@ -25,6 +25,7 @@ export function App() {
         <PageTransition>
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/latest" element={<LatestUpdatesPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/advertise" element={<AdvertisePage />} />
@@ -34,7 +35,6 @@ export function App() {
             <Route path="/category/:slug" element={<CategoryPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/news/:slug" element={<StoryPageWrapper />} />
-            <Route path="/funding" element={<FundingTrackerPage />} /> {/* 👈 Added route */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </PageTransition>

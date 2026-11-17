@@ -4,8 +4,11 @@ import { Container } from "@/components/Container";
 import { PageTitle } from "./ListingPages";
 import { ErrorState, EmptyState, GridSkeleton } from "@/components/States";
 import { StoryLink } from "@/components/StoryBits";
+import { useTranslation } from "react-i18next";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 export function FundingTrackerPage() {
+    const { t } = useTranslation();
     // Fetch recent stories and filter for those with funding details
     const { data, loading, error, retry } = useApi(() => getStories({ limit: 50 }), []);
 
@@ -54,7 +57,7 @@ export function FundingTrackerPage() {
 
                                         {/* Sector (Uses the Category) */}
                                         <td className="px-5 py-4 text-muted-foreground capitalize">
-                                            {story.category}
+                                            {getCategoryLabel(story.categories[0] ?? "news", t)}
                                         </td>
 
                                         {/* Funding Amount (Prefers INR, falls back to USD, then Undisclosed) */}

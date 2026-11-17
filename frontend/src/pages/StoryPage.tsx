@@ -1,6 +1,5 @@
-// src/pages/StoryPage.tsx
 import { Link, useParams } from "react-router-dom";
-import { ArrowUpRight, Check, Link2, Linkedin, MessageCircle, Twitter } from "lucide-react";
+import { Check, Link2, Linkedin, MessageCircle, Twitter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
@@ -9,7 +8,8 @@ import { btnPrimary } from "@/components/Buttons";
 import { Container } from "@/components/Container";
 import { ScrollProgress } from "@/components/Motion";
 import { TranslatedText } from "@/components/TranslatedText";
-import { RevealGroup, RevealItem } from "@/components/Reveal";
+import { TranslatedHtml } from "@/components/TranslatedHtml";
+import { Reveal, RevealGroup, RevealItem } from "@/components/Reveal";
 import { CategoryTag, SectionLabel } from "@/components/StoryBits";
 import { StoryCard } from "@/components/StoryCard";
 import { StoryImage } from "@/components/StoryImage";
@@ -20,8 +20,7 @@ import { useApi } from "@/lib/use-api";
 import { trackEvent } from "@/lib/analytics";
 import type { Story } from "@/types/story";
 import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
-import { useTranslatedText } from "@/i18n/hooks"; // 👈 Import this
-import { cn } from "@/lib/utils";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 const shareBtn =
   "inline-flex h-11 w-11 items-center justify-center rounded-[4px] border border-border transition-colors duration-200 hover:border-foreground hover:text-signal";
@@ -88,12 +87,10 @@ export function StoryPage({ story }: { story: Story }) {
   const { t } = useTranslation();
   const related = useApi(() => getRelatedStories(story.slug), [story.slug]);
 
-  // 👇 Translate the HTML content here 👇
-  const translatedContent = useTranslatedText(story.content || "");
+  // 👇 SAFE CATEGORY FALLBACK 👇
+  const primaryCategory = (story as any).categories?.[0] || (story as any).category || "news";
 
   const pageUrl = `https://startup-news-room.vercel.app/news/${story.slug}`;
-  const pageTitle = story.seoTitle || story.title;
-
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -101,7 +98,7 @@ export function StoryPage({ story }: { story: Story }) {
     image: [story.imageUrl],
     datePublished: story.publishedAt,
     dateModified: story.publishedAt,
-    author: [{ "@type": "Organization", name: "SNR Desk" }],
+    author: [{ "@type": "Organization", name: story.sourceName || "Startup News Room" }],
     publisher: {
       "@type": "Organization",
       name: "Startup News Room",
@@ -113,25 +110,19 @@ export function StoryPage({ story }: { story: Story }) {
   return (
     <>
       <Helmet>
-        <title>{pageTitle} | Startup News Room</title>
+        <title>{story.title} | Startup News Room</title>
         <meta name="description" content={story.summary} />
         <link rel="canonical" href={pageUrl} />
-
-        {/* Open Graph */}
         <meta property="og:type" content="article" />
-        <meta property="og:title" content={pageTitle} />
+        <meta property="og:title" content={story.title} />
         <meta property="og:description" content={story.summary} />
         <meta property="og:image" content={story.imageUrl} />
         <meta property="og:url" content={pageUrl} />
         <meta property="og:site_name" content="Startup News Room" />
-
-        {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:title" content={story.title} />
         <meta name="twitter:description" content={story.summary} />
         <meta name="twitter:image" content={story.imageUrl} />
-
-        {/* Structured Data */}
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
 
@@ -148,16 +139,16 @@ export function StoryPage({ story }: { story: Story }) {
                 </li>
                 <li aria-hidden>/</li>
                 <li>
-                  <Link to={`/category/${story.category}`} className="hover:text-signal">
-                    {t(`categories.${story.category}`)}
+                  {/* 👇 Using safe primaryCategory */}
+                  <Link to={`/category/${primaryCategory}`} className="hover:text-signal">
+                    {getCategoryLabel(primaryCategory, t)}
                   </Link>
                 </li>
               </ol>
             </nav>
-
-            <div>
+            <Reveal>
               <CategoryTag
-                slug={story.category}
+                slug={primaryCategory}
                 breaking={story.isBreaking}
                 className="mt-8 text-muted-foreground"
               />
@@ -167,12 +158,15 @@ export function StoryPage({ story }: { story: Story }) {
               <p className="mt-5 text-[1.1875rem] leading-relaxed text-muted-foreground">
                 <TranslatedText text={story.summary} />
               </p>
-            </div>
-
+            </Reveal>
             <div className="mt-8 flex flex-col gap-4 border-y border-border py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">SNR Desk</span>
-                <span aria-hidden>·</span>
+                {story.sourceName && (
+                  <>
+                    <span className="font-semibold text-foreground">{story.sourceName}</span>
+                    <span aria-hidden>·</span>
+                  </>
+                )}
                 <time dateTime={story.publishedAt} suppressHydrationWarning>
                   {formatDate(story.publishedAt)}
                 </time>
@@ -191,21 +185,21 @@ export function StoryPage({ story }: { story: Story }) {
           </figure>
 
           <div className="mx-auto mt-10 max-w-[680px] text-[1.0625rem] leading-[1.75]">
-            {/* 👇 Render the translated HTML content 👇 */}
+            <p>
+              <TranslatedText text={story.summary} />
+            </p>
+
             {story.content && (
-              <div
-                className={cn(
-                  "max-w-none text-foreground",
-                  "prose prose-sm sm:prose-base dark:prose-invert",
-                  "prose-table:w-full prose-table:border-collapse prose-table:text-sm",
-                  "prose-th:bg-muted prose-th:p-2 prose-th:border prose-th:border-border prose-th:text-left",
-                  "prose-td:p-2 prose-td:border prose-td:border-border"
-                )}
-                dangerouslySetInnerHTML={{ __html: translatedContent }}
-              />
+              story.content.includes("<") ? (
+                <TranslatedHtml html={story.content} className="mt-6" />
+              ) : (
+                <p className="mt-6">
+                  <TranslatedText text={story.content} />
+                </p>
+              )
             )}
 
-            {story.tags.length > 0 && (
+            {story.tags && story.tags.length > 0 && (
               <ul className="mt-8 flex flex-wrap gap-2">
                 {story.tags.map((tag) => (
                   <li
@@ -217,16 +211,6 @@ export function StoryPage({ story }: { story: Story }) {
                 ))}
               </ul>
             )}
-            <a
-              href={story.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => trackEvent("click", "outbound_source_full", story.sourceName)}
-              className={btnPrimary("mt-10 w-full text-base sm:w-auto")}
-            >
-              {t("story.readFullAt", { source: story.sourceName })}{" "}
-              <ArrowUpRight className="h-4 w-4" aria-hidden />
-            </a>
           </div>
         </Container>
       </article>

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Container } from "@/components/Container";
 import { LINKEDIN_URL, INSTAGRAM_URL, YOUTUBE_URL, HEADER_VARS } from "@/components/Header";
 import { categories } from "@/data/categories";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 // Updated link styles to be dark and readable on the light background
 const linkCls =
@@ -58,7 +59,7 @@ export function Footer() {
               {categories.map((c) => (
                 <li key={c.slug}>
                   <Link to={`/category/${c.slug}`} className={linkCls}>
-                    {t(`categories.${c.slug}`)}
+                    {getCategoryLabel(c.slug, t, c.name)}
                   </Link>
                 </li>
               ))}

@@ -1,21 +1,21 @@
-// backend/src/middleware/rateLimits.ts
 import rateLimit from 'express-rate-limit';
-import { isTest } from '../config/env.js';
+import { isTest, isDev } from '../config/env.js'; // 👈 Import isDev
 
-const skip = () => isTest;
+// 👇 Skip rate limiting during tests and local development
+const skip = () => isTest || isDev;
 
 export const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 2000, // 👈 Increased from 100 to 2000
+    limit: 100,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
-    skip,
+    skip, // 👈 Use the updated skip function
     message: { error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down.' } },
 });
 
 export const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 10, // 👈 Increased from 5
+    limit: 5,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     skip,
@@ -30,7 +30,7 @@ export const loginLimiter = rateLimit({
 
 export const newsletterLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    limit: 10, // 👈 Increased from 5
+    limit: 5,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     skip,
@@ -39,7 +39,7 @@ export const newsletterLimiter = rateLimit({
 
 export const contactLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    limit: 10, // 👈 Increased from 5
+    limit: 5,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     skip,

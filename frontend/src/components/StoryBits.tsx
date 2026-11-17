@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
 import type { Story } from "@/types/story";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 export function CategoryTag({
   slug,
@@ -25,7 +26,7 @@ export function CategoryTag({
     >
       {breaking && <span className="text-signal">{t("breaking")}</span>}
       {breaking && <span aria-hidden className="h-3 w-px bg-border" />}
-      <span>{t(`categories.${slug}`)}</span>
+      <span>{getCategoryLabel(slug, t)}</span>
     </span>
   );
 }
@@ -66,7 +67,7 @@ export function StoryMeta({
         className,
       )}
     >
-      <span className="font-medium text-foreground">{story.sourceName}</span>
+      {story.sourceName && <span className="font-medium text-foreground">{story.sourceName}</span>}
       <time dateTime={story.publishedAt} suppressHydrationWarning>
         {timeLabel}
       </time>
@@ -77,6 +78,7 @@ export function StoryMeta({
 
 export function SourceLink({ story, className }: { story: Story; className?: string }) {
   const { t } = useTranslation();
+  if (!story.sourceUrl) return null;
   return (
     <a
       href={story.sourceUrl}
@@ -90,7 +92,7 @@ export function SourceLink({ story, className }: { story: Story; className?: str
     >
       {t("story.source")} <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
       <span className="sr-only">
-        : {story.sourceName} {t("story.opensInNewTab")}
+        : {story.sourceName || t("story.source")} {t("story.opensInNewTab")}
       </span>
     </a>
   );

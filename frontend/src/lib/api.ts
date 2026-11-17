@@ -2,7 +2,6 @@
 // The single place the app reads data. Every function hits the Express
 // backend and normalises its response into the shapes the pages expect.
 
-import { categories as staticCategories } from "@/data/categories";
 import type { Category, Paginated, Story } from "@/types/story";
 
 // ── Config ──────────────────────────────────────────────────────────────
@@ -82,6 +81,19 @@ function adaptPaginated<T>(res: BackendPaginated<T>): Paginated<T> {
   };
 }
 
+function adaptStory(story: Story): Story {
+  const legacyCategory = story.category;
+  return {
+    ...story,
+    categories:
+      Array.isArray(story.categories) && story.categories.length > 0
+        ? story.categories
+        : legacyCategory
+          ? [legacyCategory]
+          : [],
+  };
+}
+
 // Backend hard-caps `limit` at 50. Archive/Search pass 100; clamp silently.
 function clampLimit(n: number, max = 50): number {
   if (n > max) {
@@ -100,6 +112,7 @@ export interface GetStoriesParams {
   q?: string;
   page?: number;
   limit?: number;
+  region?: string;
 }
 
 export async function getStories({
@@ -107,30 +120,32 @@ export async function getStories({
   q,
   page = 1,
   limit = 9,
+  region,
 }: GetStoriesParams = {}): Promise<Paginated<Story>> {
   const qs = new URLSearchParams();
   if (category) qs.set("category", category);
   if (q) qs.set("q", q);
+  if (region) qs.set("region", region);
   qs.set("page", String(page));
   qs.set("limit", String(clampLimit(limit)));
 
   const res = await request<BackendPaginated<Story>>(`/stories?${qs.toString()}`);
-  return adaptPaginated(res);
+  return adaptPaginated({ ...res, data: res.data.map(adaptStory) });
 }
 
 export async function getFeaturedStory(): Promise<Story | null> {
   const res = await request<BackendEnvelope<Story | null>>("/stories/featured");
-  return res.data ?? null;
+  return res.data ? adaptStory(res.data) : null;
 }
 
 export async function getTopStories(): Promise<Story[]> {
   const res = await request<BackendEnvelope<Story[]>>("/stories/top");
-  return res.data;
+  return res.data.map(adaptStory);
 }
 
 export async function getBreakingStories(): Promise<Story[]> {
   const res = await request<BackendEnvelope<Story[]>>("/stories/breaking");
-  return res.data;
+  return res.data.map(adaptStory);
 }
 
 export async function getStoryBySlug(slug: string): Promise<Story | null> {
@@ -138,7 +153,7 @@ export async function getStoryBySlug(slug: string): Promise<Story | null> {
     const res = await request<BackendEnvelope<Story>>(
       `/stories/${encodeURIComponent(slug)}`,
     );
-    return res.data;
+    return adaptStory(res.data);
   } catch (err) {
     // Backend returns 404 for unknown / unpublished stories.
     if (err instanceof ApiError && err.status === 404) return null;
@@ -150,15 +165,13 @@ export async function getRelatedStories(slug: string): Promise<Story[]> {
   const res = await request<BackendEnvelope<Story[]>>(
     `/stories/${encodeURIComponent(slug)}/related`,
   );
-  return res.data;
+  return res.data.map(adaptStory);
 }
 
+// 👇 UPDATED TO FETCH FROM BACKEND 👇
 export async function getCategories(): Promise<Category[]> {
-  // Intentionally still static. The mock categories match the backend seed
-  // slugs exactly, and no consumer uses `storyCount`. Swap this body to
-  // `request<BackendEnvelope<Category[]>>("/categories")` later if you want
-  // live counts in the header.
-  return staticCategories;
+  const res = await request<BackendEnvelope<Category[]>>("/categories");
+  return res.data;
 }
 
 // ── Forms ───────────────────────────────────────────────────────────────
@@ -189,4 +202,28 @@ export async function sendContactMessage(payload: ContactPayload): Promise<void>
       ...payload,
     }),
   });
+}
+
+export const api = {
+  // ... existing categories, stories, etc.
+  translate: {
+    async translate(text: string, targetLang: string): Promise<string> {
+      const res = await request<{ data: { translated: string } }>("/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, targetLang }),
+      });
+      return res.data.translated;
+    }
+  }
+};
+
+// Add this at the bottom of src/lib/api.ts
+export async function translateTextApi(text: string, targetLang: string): Promise<string> {
+  const res = await request<BackendEnvelope<{ translated: string }>>("/translate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, targetLang }),
+  });
+  return res.data.translated;
 }

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-    AdminApiError,
+    adminErrorMessage,
     categories as categoriesApi,
     linkPreview as linkPreviewApi,
     stories as storiesApi,
@@ -20,11 +20,7 @@ interface FormState {
     author: string;
     imageUrl: string;
     imageCredit: string;
-    sourceName: string;
-    sourceUrl: string;
-    category: string;
-    region: "Karnataka" | "India" | "Global";
-    city: string;
+    categories: string[];
     companiesInput: string;
     tagsInput: string;
     // Funding
@@ -46,8 +42,8 @@ interface FormState {
 
 const empty: FormState = {
     title: "", seoTitle: "", summary: "", content: "", author: "Staff",
-    imageUrl: "", imageCredit: "", sourceName: "", sourceUrl: "", category: "",
-    region: "India", city: "", companiesInput: "", tagsInput: "",
+    imageUrl: "", imageCredit: "", categories: [],
+    companiesInput: "", tagsInput: "",
     fundingAmountINR: "", fundingAmountUSD: "", fundingRound: "", fundingInvestors: "",
     isSponsored: false, sponsorName: "", homepageSlot: "none", breakingExpiresAt: "",
     status: "draft", publishedAt: "", isFeatured: false, isBreaking: false,
@@ -70,8 +66,7 @@ function storyToForm(s: AdminStory): FormState {
     return {
         title: s.title, seoTitle: s.seoTitle || "", summary: s.summary, content: s.content,
         author: s.author || "Staff", imageUrl: s.imageUrl, imageCredit: s.imageCredit,
-        sourceName: s.sourceName, sourceUrl: s.sourceUrl, category: s.category,
-        region: s.region || "India", city: s.city || "",
+        categories: s.categories?.length ? s.categories : [s.category].filter(Boolean),
         companiesInput: s.companies.join(", "), tagsInput: s.tags.join(", "),
         fundingAmountINR: s.fundingDetails?.amountINR || "",
         fundingAmountUSD: s.fundingDetails?.amountUSD || "",
@@ -100,13 +95,12 @@ export function StoryEditorPage() {
     const [uploading, setUploading] = useState(false);
     const [linkBusy, setLinkBusy] = useState(false);
     const [previewUrl, setPreviewUrl] = useState("");
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
 
     useEffect(() => {
         categoriesApi.list().then((cs) => {
             setCategories(cs);
-            setForm((f) => (f.category ? f : { ...f, category: cs[0]?.slug ?? "" }));
-        }).catch(() => toast.error("Could not load categories"));
+        }).catch((err) => toast.error(adminErrorMessage(err, "Could not load categories")));
     }, []);
 
     useEffect(() => {
@@ -116,7 +110,7 @@ export function StoryEditorPage() {
             const story = res.data.find((s) => s._id === id);
             if (!story) { toast.error("Story not found"); navigate("/admin/stories"); return; }
             setForm(storyToForm(story));
-        }).catch((err) => toast.error(err instanceof AdminApiError ? err.message : "Could not load story"))
+        }).catch((err) => toast.error(adminErrorMessage(err, "Could not load story")))
             .finally(() => setLoading(false));
     }, [id, isEdit, navigate]);
 
@@ -125,19 +119,21 @@ export function StoryEditorPage() {
     }
 
     function validate(): boolean {
-        const e: Record<string, string> = {};
-        const t = form.title.trim(), s = form.summary.trim();
+        const e: Partial<Record<keyof FormState, string>> = {};
+        const t = form.title.trim(), s = form.summary.trim(), content = form.content.trim();
 
         if (t.length < 10) e.title = "At least 10 characters";
         if (t.length > 180) e.title = "At most 180 characters";
 
         if (s.length < 40) e.summary = "At least 40 characters";
         if (s.length > 500) e.summary = "At most 500 characters";
+        if (!content) e.content = "Required";
 
         if (!form.imageUrl.startsWith("https://")) e.imageUrl = "Must be an https:// URL";
-        if (!form.sourceName.trim()) e.sourceName = "Required";
-        if (!/^https?:\/\//i.test(form.sourceUrl)) e.sourceUrl = "Must start with http(s)://";
-        if (!form.category) e.category = "Choose a category";
+
+        if (!form.categories || form.categories.length === 0) {
+            e.categories = "Select at least one category";
+        }
 
         setErrors(e);
         return Object.keys(e).length === 0;
@@ -145,10 +141,20 @@ export function StoryEditorPage() {
 
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!validate()) return;
+        if (!validate()) {
+            toast.error("Please fix the highlighted fields before saving.");
+            return;
+        }
         setSaving(true);
 
-        const payload = {
+        const publishedAt = form.publishedAt ? fromLocalInput(form.publishedAt) : undefined;
+        if (form.publishedAt && !publishedAt) {
+            toast.error("Please enter a valid news date.");
+            setSaving(false);
+            return;
+        }
+
+        const payload: Partial<AdminStory> = {
             title: form.title.trim(),
             seoTitle: form.seoTitle.trim(),
             summary: form.summary.trim(),
@@ -156,11 +162,7 @@ export function StoryEditorPage() {
             author: form.author.trim(),
             imageUrl: form.imageUrl.trim(),
             imageCredit: form.imageCredit.trim(),
-            sourceName: form.sourceName.trim(),
-            sourceUrl: form.sourceUrl.trim(),
-            category: form.category,
-            region: form.region,
-            city: form.city.trim(),
+            categories: form.categories,
             companies: parseArrayInput(form.companiesInput),
             tags: parseArrayInput(form.tagsInput, 8),
             fundingDetails: {
@@ -172,27 +174,24 @@ export function StoryEditorPage() {
             isSponsored: form.isSponsored,
             sponsorName: form.sponsorName.trim(),
             homepageSlot: form.homepageSlot,
-
-            // SEND UNDEFINED IF BLANK SO THE BACKEND DEFAULTS TO CURRENT TIME
-            breakingExpiresAt: form.breakingExpiresAt ? fromLocalInput(form.breakingExpiresAt) : undefined,
-            publishedAt: form.publishedAt ? fromLocalInput(form.publishedAt) : undefined,
-
+            breakingExpiresAt: form.breakingExpiresAt ? fromLocalInput(form.breakingExpiresAt) : null,
             status: form.status,
             isFeatured: form.isFeatured,
             isBreaking: form.isBreaking,
         };
+        if (publishedAt) payload.publishedAt = publishedAt;
 
         try {
             if (isEdit && id) {
-                await storiesApi.update(id, payload as any);
+                await storiesApi.update(id, payload);
                 toast.success("Story updated");
             } else {
-                await storiesApi.create(payload as any);
+                await storiesApi.create(payload);
                 toast.success("Story created");
             }
             navigate("/admin/stories");
         } catch (err) {
-            toast.error(err instanceof AdminApiError ? err.message : "Save failed");
+            toast.error(adminErrorMessage(err, "Save failed"));
         } finally {
             setSaving(false);
         }
@@ -207,7 +206,7 @@ export function StoryEditorPage() {
             update("imageUrl", result.url);
             toast.success("Image uploaded");
         } catch (err) {
-            toast.error(err instanceof AdminApiError ? err.message : "Upload failed");
+            toast.error(adminErrorMessage(err, "Upload failed"));
         } finally {
             setUploading(false);
             e.target.value = "";
@@ -224,12 +223,10 @@ export function StoryEditorPage() {
                 title: preview.title || f.title,
                 summary: preview.description || f.summary,
                 imageUrl: preview.imageUrl || f.imageUrl,
-                sourceName: preview.siteName || f.sourceName,
-                sourceUrl: f.sourceUrl || previewUrl.trim(),
             }));
             toast.success("Form filled from source");
         } catch (err) {
-            toast.error(err instanceof AdminApiError ? err.message : "Could not fetch link");
+            toast.error(adminErrorMessage(err, "Could not fetch link"));
         } finally {
             setLinkBusy(false);
         }
@@ -268,7 +265,7 @@ export function StoryEditorPage() {
                     <input id="seoTitle" value={form.seoTitle} onChange={(e) => update("seoTitle", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
                 </Field>
 
-                <Field id="summary" label="Summary" error={errors.summary} hint="40–500 characters">
+                <Field id="summary" label="Subheading" error={errors.summary} hint="40–500 characters">
                     <div className="relative mt-1">
                         <textarea
                             id="summary"
@@ -288,8 +285,7 @@ export function StoryEditorPage() {
                     </div>
                 </Field>
 
-                {/* 👇 UPDATED CONTENT FIELD 👇 */}
-                <Field id="content" label="Content (Optional)" hint="Up to 50,000 characters (HTML allowed)">
+                <Field id="content" label="News Article" error={errors.content} hint="Required · Up to 50,000 characters (HTML allowed)">
                     <textarea
                         id="content"
                         rows={12}
@@ -300,7 +296,6 @@ export function StoryEditorPage() {
                         placeholder="<p>Paragraph text here...</p>&#10;<table>...</table>"
                     />
                 </Field>
-                {/* 👆 END OF UPDATE 👆 */}
             </section>
 
             {/* MEDIA */}
@@ -322,43 +317,40 @@ export function StoryEditorPage() {
 
             {/* METADATA & TAXONOMY */}
             <section className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <Field id="sourceName" label="Source Name" error={errors.sourceName}>
-                    <input id="sourceName" value={form.sourceName} onChange={(e) => update("sourceName", e.target.value)} placeholder="TechCrunch" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
-                </Field>
-                <Field id="sourceUrl" label="Source URL" error={errors.sourceUrl}>
-                    <input id="sourceUrl" value={form.sourceUrl} onChange={(e) => update("sourceUrl", e.target.value)} placeholder="https://..." className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
-                </Field>
                 <Field id="author" label="Author / Desk">
                     <input id="author" value={form.author} onChange={(e) => update("author", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
                 </Field>
-                <Field id="category" label="Category" error={errors.category}>
-                    <select id="category" value={form.category} onChange={(e) => update("category", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2">
-                        {categories.map((c) => <option key={c._id} value={c.slug}>{c.name}</option>)}
-                    </select>
-                </Field>
+
+                {/* 👇 MULTI-SELECT CATEGORY CHECKBOXES 👇 */}
+                <div className="sm:col-span-2">
+                    <Field id="categories" label="Categories (Select Multiple)" error={errors.categories}>
+                        <div className="mt-2 grid grid-cols-2 gap-3 rounded-lg border border-border bg-muted/20 p-4 sm:grid-cols-3">
+                            {categories.map((c) => (
+                                <label key={c._id} className="flex items-center gap-2 text-sm cursor-pointer hover:text-signal">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.categories.includes(c.slug)}
+                                        onChange={(e) => {
+                                            const updated = e.target.checked
+                                                ? [...form.categories, c.slug]
+                                                : form.categories.filter((slug) => slug !== c.slug);
+                                            update("categories", updated);
+                                        }}
+                                        className="h-4 w-4 rounded border-border text-signal focus:ring-signal"
+                                    />
+                                    {c.name}
+                                </label>
+                            ))}
+                        </div>
+                    </Field>
+                </div>
+                {/* 👆 END OF MULTI-SELECT 👆 */}
+
                 <Field id="tags" label="Tags" hint="Comma-separated, max 8">
                     <input id="tags" value={form.tagsInput} onChange={(e) => update("tagsInput", e.target.value)} placeholder="funding, robotics" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
                 </Field>
                 <Field id="companies" label="Companies Mentioned" hint="Comma-separated">
                     <input id="companies" value={form.companiesInput} onChange={(e) => update("companiesInput", e.target.value)} placeholder="Acme Robotics, Beta Inc" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
-                </Field>
-            </section>
-
-            {/* REGIONAL DATA */}
-            <section className="grid grid-cols-1 gap-6 rounded-lg border border-border bg-muted/10 p-5 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                    <h2 className="font-label text-lg">Regional Targeting</h2>
-                    <p className="text-sm text-muted-foreground">Used for the "Karnataka · India · Global" header switcher.</p>
-                </div>
-                <Field id="region" label="Region">
-                    <select id="region" value={form.region} onChange={(e) => update("region", e.target.value as any)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2">
-                        <option value="Karnataka">Karnataka</option>
-                        <option value="India">India</option>
-                        <option value="Global">Global</option>
-                    </select>
-                </Field>
-                <Field id="city" label="City (Optional)">
-                    <input id="city" value={form.city} onChange={(e) => update("city", e.target.value)} placeholder="Bengaluru" className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
                 </Field>
             </section>
 
@@ -407,7 +399,7 @@ export function StoryEditorPage() {
                     )}
                 </div>
 
-                <Field id="publishedAt" label="Publish Date/Time" hint="Leave blank for now. Future = scheduled.">
+                <Field id="publishedAt" label="News Date/Time" hint="This date appears on the article. Set an earlier date to backdate; future dates schedule publication.">
                     <input id="publishedAt" type="datetime-local" value={form.publishedAt} onChange={(e) => update("publishedAt", e.target.value)} className="mt-1 w-full rounded border border-border bg-background px-3 py-2" />
                 </Field>
 
@@ -450,7 +442,7 @@ export function StoryEditorPage() {
 }
 
 function Field({ id, label, error, hint, children }: {
-    id: string; label: string; error?: string; hint?: string; children: React.ReactNode;
+    id: string; label: string; error?: string | undefined; hint?: string | undefined; children: React.ReactNode;
 }) {
     return (
         <div>

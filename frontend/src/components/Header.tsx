@@ -7,10 +7,12 @@ import { useTranslation } from "react-i18next";
 import { Container } from "@/components/Container";
 import { SearchOverlay } from "@/components/SearchOverlay";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { categories } from "@/data/categories";
 import { formatLongDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useApi } from "@/lib/use-api";
+import { getCategories } from "@/lib/api"; // 👈 Correct import
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 export const LINKEDIN_URL = "https://www.linkedin.com/company/startup-news-room/";
 export const INSTAGRAM_URL = "https://www.instagram.com/startupnewsroom";
@@ -25,12 +27,6 @@ export const HEADER_VARS: CSSProperties = {
   backgroundColor: LOGO_COLOR,
   color: INK,
 };
-
-const NAV = [
-  { slug: "", label: "All" },
-  ...categories.map((c) => ({ slug: c.slug, label: c.name })),
-  { slug: "/funding", label: "Funding Tracker", isCustom: true }
-];
 
 function UtilityBar() {
   const { t } = useTranslation();
@@ -58,15 +54,17 @@ function UtilityBar() {
 
 function useActiveSlug() {
   const { pathname } = useLocation();
-  if (pathname === "/") return "";
-  if (pathname === "/funding") return "/funding";
+  if (pathname === "/") return "/";
+  if (pathname === "/latest") return "/latest";
   const m = pathname.match(/^\/category\/([^/]+)/);
-  return m ? m[1] : null;
+  return m ? m[1] : "";
 }
 
 function NavLink({ item, className, onClick }: { item: { slug: string, label: string, isCustom?: boolean }; className?: string; onClick?: () => void; }) {
   const { t } = useTranslation();
-  const label = item.slug && !item.isCustom ? t(`categories.${item.slug}`) : item.label;
+  const label = item.isCustom
+    ? item.label
+    : getCategoryLabel(item.slug, t, item.label);
   const to = item.isCustom ? item.slug : (item.slug ? `/category/${item.slug}` : "/");
 
   return <Link to={to} className={className} onClick={onClick}>{label}</Link>;
@@ -77,6 +75,16 @@ export function Header() {
   const active = useActiveSlug();
   const reduce = useReducedMotion();
   const { scrollY, scrollYProgress } = useScroll();
+
+  // 👇 Fixed: Using getCategories() directly 👇
+  const { data: liveCats } = useApi(() => getCategories(), []);
+
+  // Build the dynamic NAV array
+  const NAV = [
+    { slug: "/", label: t("nav.all"), isCustom: true },
+    { slug: "/latest", label: "Latest Updates", isCustom: true },
+    ...(liveCats?.map((c) => ({ slug: c.slug, label: c.name })) || []),
+  ];
 
   const [hidden, setHidden] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -134,7 +142,7 @@ export function Header() {
             <nav aria-label={t("footer.categories")} className="hidden h-full lg:block">
               <ul className="flex h-full items-center gap-1">
                 {NAV.map((n) => (
-                  <li key={n.slug || "all"} className="relative h-full flex items-center">
+                  <li key={n.slug || "home"} className="relative h-full flex items-center">
                     <NavLink item={n} className={cn("font-label flex h-full items-center px-3 text-[0.875rem] font-semibold transition-colors duration-300 ease-out", active === n.slug ? "text-[#101312]" : "text-[#565C5A] hover:text-signal")} />
                     {active === n.slug && <motion.span layoutId="nav-underline" className="absolute inset-x-2 bottom-0 h-0.5 bg-signal" transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} />}
                   </li>
@@ -169,7 +177,7 @@ export function Header() {
                     <nav aria-label={t("footer.categories")} className="mt-6">
                       <ul className="divide-y divide-[rgba(16,19,18,0.1)] border-y border-[rgba(16,19,18,0.1)]">
                         {NAV.map((n) => (
-                          <li key={n.slug || "all"}>
+                          <li key={n.slug || "home"}>
                             <NavLink item={n} onClick={() => setMenuOpen(false)} className={cn("font-label flex min-h-[52px] items-center text-2xl font-bold transition-colors duration-200 hover:text-signal", active === n.slug ? "text-[#101312]" : "text-[#565C5A]")} />
                           </li>
                         ))}
@@ -187,7 +195,7 @@ export function Header() {
             </div>
           </Container>
 
-          {/* 👇 HORIZONTAL LANGUAGE BAR 👇 */}
+          {/* HORIZONTAL LANGUAGE BAR */}
           <div className="border-t border-[rgba(16,19,18,0.06)] bg-[#F2F4F3]">
             <Container className="flex h-9 items-center justify-start gap-4">
               <span className="hidden text-[11px] font-bold uppercase tracking-wider text-[#565C5A] sm:inline">
@@ -196,7 +204,6 @@ export function Header() {
               <LanguageSwitcher />
             </Container>
           </div>
-          {/* 👆 END OF LANGUAGE BAR 👆 */}
 
           <motion.div aria-hidden className="pointer-events-none absolute left-0 right-0 top-full h-6" style={{ background: "linear-gradient(to bottom, rgba(16, 19, 18, 0.10), transparent)", opacity: shadowOpacity }} />
         </motion.div>

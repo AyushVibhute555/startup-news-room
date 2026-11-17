@@ -14,9 +14,10 @@ const storySchema = new Schema(
         author: { type: String, default: 'Staff', trim: true, maxlength: 120 },
         imageUrl: { type: String, required: true, trim: true },
         imageCredit: { type: String, default: '', trim: true, maxlength: 200 },
-        sourceName: { type: String, required: true, trim: true, maxlength: 120 },
-        sourceUrl: { type: String, required: true, trim: true },
-        category: { type: String, required: true, trim: true, lowercase: true },
+        sourceName: { type: String, default: '', trim: true, maxlength: 120 },
+        sourceUrl: { type: String, default: '', trim: true },
+        category: { type: String, trim: true },
+        categories: { type: [String], required: true, default: [], index: true },
 
         // Phase 2 Additions
         region: { type: String, enum: ['Karnataka', 'India', 'Global'], default: 'India' },

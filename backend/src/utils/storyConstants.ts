@@ -9,6 +9,7 @@ export const PUBLIC_STORY_PROJECTION = {
     sourceName: 1,
     sourceUrl: 1,
     category: 1,
+    categories: 1,
     tags: 1,
     publishedAt: 1,
     readTime: 1,

@@ -1,10 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { StoryImage } from "@/components/StoryImage";
 import { StoryLink, StoryMeta } from "@/components/StoryBits";
-import { TranslatedText } from "@/components/TranslatedText";
+import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
 import { cn } from "@/lib/utils";
 import type { Story } from "@/types/story";
-import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 interface StoryRowProps {
   story: Story;
@@ -14,6 +14,9 @@ interface StoryRowProps {
 
 export function StoryRow({ story, className, hasBorder = true }: StoryRowProps) {
   const { t } = useTranslation();
+
+  // 👇 SAFE FALLBACK
+  const primaryCategory = (story as any).categories?.[0] || (story as any).category || "news";
 
   return (
     <article
@@ -33,7 +36,7 @@ export function StoryRow({ story, className, hasBorder = true }: StoryRowProps) 
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="font-label text-xs uppercase tracking-wide text-muted-foreground">
-          {t(`categories.${story.category}`)}
+          {getCategoryLabel(primaryCategory, t)}
         </span>
         <h3 className="headline mt-1.5 text-[0.9375rem] sm:text-[1rem] leading-[1.3] font-[650] line-clamp-3">
           <StoryLink story={story}>

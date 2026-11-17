@@ -42,7 +42,12 @@ export async function listPublicStories(params: ListStoriesParams) {
     const { category, region, q, page, limit, date } = params;
     const filter: FilterQuery<StoryAttrs> = publicStoryFilter();
 
-    if (category) filter.category = category;
+    if (category) {
+        filter.$or = [
+            { categories: { $in: [category] } },
+            { category },
+        ];
+    }
     if (region) filter.region = region;
     if (date) {
         const start = new Date(`${date}T00:00:00.000Z`);
@@ -72,21 +77,18 @@ export async function listPublicStories(params: ListStoriesParams) {
 }
 
 async function findFeaturedOrLatest(): Promise<PublicStory | null> {
-    // 1. Try explicit Homepage Lead slot
     const lead = await Story.findOne(publicStoryFilter({ homepageSlot: 'lead' }))
         .sort({ publishedAt: -1 })
         .select(publicProjection())
         .lean();
     if (lead) return lead as PublicStory;
 
-    // 2. Fallback to isFeatured
     const featured = await Story.findOne(publicStoryFilter({ isFeatured: true }))
         .sort({ publishedAt: -1 })
         .select(publicProjection())
         .lean();
     if (featured) return featured as PublicStory;
 
-    // 3. Fallback to newest
     const latest = await Story.findOne(publicStoryFilter())
         .sort({ publishedAt: -1, _id: -1 })
         .select(publicProjection())
@@ -103,7 +105,6 @@ export async function getTopStories(): Promise<PublicStory[]> {
     const filter = publicStoryFilter({ isSponsored: { $ne: true } });
     if (featured) filter._id = { $ne: (featured as { _id: unknown })._id };
 
-    // 1. First, prioritize explicitly pinned 'top' stories
     const pinned = await Story.find({ ...filter, homepageSlot: 'top' })
         .sort({ publishedAt: -1, _id: -1 })
         .limit(5)
@@ -112,7 +113,6 @@ export async function getTopStories(): Promise<PublicStory[]> {
 
     if (pinned.length >= 5) return pinned as PublicStory[];
 
-    // 2. Fill the remaining slots with latest stories
     const excludeIds = [...(featured ? [(featured as any)._id] : []), ...pinned.map((s) => s._id)];
     const remaining = 5 - pinned.length;
 
@@ -146,10 +146,34 @@ export async function getStoryBySlug(slug: string): Promise<PublicStory> {
 }
 
 export async function getRelatedStories(slug: string): Promise<PublicStory[]> {
-    const story = await Story.findOne(publicStoryFilter({ slug })).select({ _id: 1, category: 1, tags: 1 }).lean();
+    // 👇 Fetch both category and categories to handle migrated and un-migrated data
+    const story = await Story.findOne(publicStoryFilter({ slug }))
+        .select({ _id: 1, category: 1, categories: 1, tags: 1 })
+        .lean();
+
     if (!story) throw ApiError.notFound('Story not found');
 
-    const base = publicStoryFilter({ category: story.category, _id: { $ne: story._id }, isSponsored: { $ne: true } });
+    // Safely determine the primary category
+    const storyCategories = Array.isArray(story.categories) ? story.categories : [];
+    const cats = Array.from(
+        new Set([
+            ...storyCategories,
+            ...(story.category ? [story.category] : []),
+        ]),
+    );
+
+    // If the story has no categories at all, just return empty to prevent a crash
+    if (cats.length === 0) return [];
+
+    const base = publicStoryFilter({
+        $or: [
+            { categories: { $in: cats } },
+            { category: { $in: cats } },
+        ],
+        _id: { $ne: story._id },
+        isSponsored: { $ne: true }
+    });
+
     const sameCategory = await Story.find(base).sort({ publishedAt: -1, _id: -1 }).limit(4).select(publicProjection()).lean();
     if (sameCategory.length >= 4) return sameCategory as PublicStory[];
 
@@ -178,7 +202,12 @@ export async function adminListStories(params: AdminListParams) {
     const { status, category, region, q, page, limit } = params;
     const filter: FilterQuery<StoryAttrs> = {};
     if (status) filter.status = status;
-    if (category) filter.category = category;
+    if (category) {
+        filter.$or = [
+            { categories: { $in: [category] } },
+            { category },
+        ];
+    }
     if (region) filter.region = region;
     if (q) filter.$text = { $search: q };
 
@@ -200,9 +229,9 @@ export interface StoryInput {
     author?: string;
     imageUrl: string;
     imageCredit?: string;
-    sourceName: string;
-    sourceUrl: string;
-    category: string;
+    sourceName?: string;
+    sourceUrl?: string;
+    categories: string[];
     region?: 'Karnataka' | 'India' | 'Global';
     city?: string;
     companies?: string[];
@@ -227,17 +256,17 @@ async function assertCategoryExists(slug: string): Promise<void> {
     const exists = await Category.exists({ slug });
     if (!exists) {
         throw ApiError.badRequest('VALIDATION_ERROR', 'Unknown category', [
-            { path: ['category'], message: `Category "${slug}" does not exist` },
+            { path: ['categories'], message: `Category "${slug}" does not exist` },
         ]);
     }
 }
 
 export async function adminCreateStory(input: StoryInput, userId: string) {
-    await assertCategoryExists(input.category);
+    for (const cat of input.categories) {
+        await assertCategoryExists(cat);
+    }
 
-    // Remove undefined values so Mongoose applies the default publishedAt date
     const data = Object.fromEntries(Object.entries(input).filter(([_, v]) => v !== undefined));
-
     const story = new Story({ ...data, createdBy: userId });
     await story.save();
     return story.toObject();
@@ -247,13 +276,13 @@ export async function adminUpdateStory(id: string, input: Partial<StoryInput>) {
     const story = await Story.findById(id);
     if (!story) throw ApiError.notFound('Story not found');
 
-    if (input.category && input.category !== story.category) {
-        await assertCategoryExists(input.category);
+    if (input.categories) {
+        for (const cat of input.categories) {
+            await assertCategoryExists(cat);
+        }
     }
 
-    // Remove undefined values so we don't overwrite the DB with null dates
     const data = Object.fromEntries(Object.entries(input).filter(([_, v]) => v !== undefined));
-
     Object.assign(story, data);
     await story.save();
     return story.toObject();

@@ -5,6 +5,7 @@ import { TranslatedText } from "@/components/TranslatedText";
 import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
 import { cn } from "@/lib/utils";
 import type { Story } from "@/types/story";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 export function StoryCard({
   story,
@@ -17,6 +18,9 @@ export function StoryCard({
 }) {
   const { t } = useTranslation();
 
+  // 👇 SAFE FALLBACK: Reads categories[0], or old category, or defaults to "news"
+  const primaryCategory = (story as any).categories?.[0] || (story as any).category || "news";
+
   return (
     <article className={cn("group relative flex h-full min-w-0 flex-col", className)}>
       <StoryImage
@@ -26,15 +30,13 @@ export function StoryCard({
         badge={story.isBreaking ? t("breaking") : undefined}
       />
       <div className="mt-3.5 flex flex-1 flex-col">
-
-        {/* 👇 Sponsored logic 👇 */}
         {story.isSponsored ? (
           <span className="font-label inline-flex w-fit items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             Sponsored by {story.sponsorName || "Partner"}
           </span>
         ) : (
           <span className="font-label text-xs uppercase tracking-wide text-muted-foreground">
-            {t(`categories.${story.category}`)}
+            {getCategoryLabel(primaryCategory, t)}
           </span>
         )}
 

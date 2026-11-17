@@ -19,9 +19,10 @@ export interface Story {
   author?: string;
   imageUrl: string;
   imageCredit: string;
-  sourceName: string;
-  sourceUrl: string;
-  category: CategorySlug;
+  sourceName?: string;
+  sourceUrl?: string;
+  categories: string[];
+  category?: string;
   region?: Region;
   city?: string;
   companies?: string[];

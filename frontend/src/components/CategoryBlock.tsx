@@ -7,6 +7,7 @@ import { StoryRow } from "@/components/StoryRow";
 import { CardSkeleton, RowSkeleton } from "@/components/States";
 import { getStories } from "@/lib/api";
 import type { Category, Story } from "@/types/story";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 interface CategoryBlockProps {
   category: Category;
@@ -42,7 +43,7 @@ export function CategoryBlock({ category, layout }: CategoryBlockProps) {
     };
   }, [category.slug, isInView]);
 
-  const localizedName = t(`categories.${category.slug}`);
+  const localizedName = getCategoryLabel(category.slug, t, category.name);
 
   if (stories && stories.length === 0) return null;
 

@@ -1,15 +1,24 @@
-// backend/src/services/translate.service.ts
 import { Translation } from '../models/Translation.js';
 
-const GLOSSARY: Record<string, string> = {
-    'Series A': '[SERIES_A]', 'Series B': '[SERIES_B]', 'Series C': '[SERIES_C]',
-    'Seed round': '[SEED_ROUND]', 'Pre-seed': '[PRE_SEED]', 'IPO': '[IPO]',
-    'SaaS': '[SAAS]', 'AI': '[AI]', 'Unicorn': '[UNICORN]', 'Fintech': '[FINTECH]',
-    'Bootstrap': '[BOOTSTRAP]', 'Venture Capital': '[VC]', 'Angel investor': '[ANGEL]',
-};
-
-// In-memory lock to prevent duplicate concurrent requests
+const MAX_TRANSLATION_CHUNK_LENGTH = 1500;
 const inFlightTranslations = new Map<string, Promise<string>>();
+
+// 1. The Startup Glossary
+const GLOSSARY: Record<string, string> = {
+    'Series A': '[SERIES_A]',
+    'Series B': '[SERIES_B]',
+    'Series C': '[SERIES_C]',
+    'Seed round': '[SEED_ROUND]',
+    'Pre-seed': '[PRE_SEED]',
+    'IPO': '[IPO]',
+    'SaaS': '[SAAS]',
+    'AI': '[AI]',
+    'Unicorn': '[UNICORN]',
+    'Fintech': '[FINTECH]',
+    'Bootstrap': '[BOOTSTRAP]',
+    'Venture Capital': '[VC]',
+    'Angel investor': '[ANGEL]',
+};
 
 function protectJargon(text: string): string {
     let protectedText = text;
@@ -22,6 +31,7 @@ function protectJargon(text: string): string {
 
 function restoreJargon(text: string, lang: string): string {
     let restoredText = text;
+
     const nativeTerms: Record<string, Record<string, string>> = {
         hi: {
             '[SERIES_A]': 'सीरीज़ A', '[SERIES_B]': 'सीरीज़ B', '[SERIES_C]': 'सीरीज़ C',
@@ -43,92 +53,222 @@ function restoreJargon(text: string, lang: string): string {
         },
     };
 
+    // 👇 FIX 1: Explicitly tell TypeScript this will always be a Record
     const langMap = (nativeTerms[lang] || nativeTerms['hi']) as Record<string, string>;
+
     for (const [token, nativeWord] of Object.entries(langMap)) {
-        restoredText = restoredText.replace(new RegExp(token, 'g'), nativeWord);
+        restoredText = restoredText.split(token).join(nativeWord);
     }
     return restoredText;
 }
 
-function chunkText(text: string, maxLen: number = 1500): string[] {
-    if (text.length <= maxLen) return [text];
+function splitText(text: string, maxLength = MAX_TRANSLATION_CHUNK_LENGTH): string[] {
     const chunks: string[] = [];
-    let current = '';
-    const blocks = text.split(/(?<=<\/p>|<\/li>|<\/tr>)/i);
+    let remaining = text;
 
-    for (const block of blocks) {
-        if (current.length + block.length > maxLen) {
-            if (current) chunks.push(current);
-            current = block;
-        } else {
-            current += block;
+    while (remaining.length > maxLength) {
+        let boundary = remaining.lastIndexOf(' ', maxLength);
+        if (boundary <= 0) boundary = maxLength;
+        chunks.push(remaining.slice(0, boundary));
+        remaining = remaining.slice(boundary);
+    }
+
+    if (remaining) chunks.push(remaining);
+    return chunks;
+}
+
+function isUsableTranslation(source: string, translated: string): boolean {
+    const sourceLength = source.replace(/\s/g, '').length;
+    const translatedLength = translated.replace(/\s/g, '').length;
+    const minimumLength = Math.min(3, Math.ceil(sourceLength * 0.1));
+    const introducedBrackets = !source.includes('[') && /\[[^\]]+\]/.test(translated);
+    return translatedLength >= minimumLength && !introducedBrackets;
+}
+
+async function translateWithGoogle(text: string, targetLang: string): Promise<string> {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+
+    if (!res.ok) {
+        throw new Error(`Translation provider returned ${res.status}`);
+    }
+
+    const data: unknown = await res.json();
+    if (
+        !Array.isArray(data) ||
+        !Array.isArray(data[0]) ||
+        !data[0].every((item: unknown) => Array.isArray(item) && typeof item[0] === 'string')
+    ) {
+        throw new Error('Translation provider returned an invalid response');
+    }
+
+    const translatedRaw = data[0].map((item: [string]) => item[0]).join('');
+    return translatedRaw;
+}
+
+async function translateWithGoogleClient(text: string, targetLang: string): Promise<string> {
+    const url = new URL('https://clients5.google.com/translate_a/t');
+    url.searchParams.set('client', 'dict-chrome-ex');
+    url.searchParams.set('sl', 'en');
+    url.searchParams.set('tl', targetLang);
+    url.searchParams.set('q', text);
+
+    const res = await fetch(url, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0',
+            Accept: 'application/json',
+        },
+    });
+    if (!res.ok) {
+        throw new Error(`Google translation fallback returned ${res.status}`);
+    }
+
+    const data: unknown = await res.json();
+    if (!Array.isArray(data) || !data.every((item: unknown) => typeof item === 'string')) {
+        throw new Error('Google translation fallback returned an invalid response');
+    }
+
+    return data.join('');
+}
+
+async function translateWithMyMemory(text: string, targetLang: string): Promise<string> {
+    const chunks = splitText(text, 450);
+    const translatedChunks: string[] = [];
+
+    for (const chunk of chunks) {
+        if (translatedChunks.length > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+
+        const leadingWhitespace = chunk.match(/^\s*/)?.[0] ?? '';
+        const trailingWhitespace = chunk.match(/\s*$/)?.[0] ?? '';
+        const end = chunk.length - trailingWhitespace.length;
+        const translatableText = chunk.slice(leadingWhitespace.length, end);
+
+        if (!translatableText) {
+            translatedChunks.push(`${leadingWhitespace}${trailingWhitespace}`);
+            continue;
+        }
+
+        const url = new URL('https://api.mymemory.translated.net/get');
+        url.searchParams.set('q', translatableText);
+        url.searchParams.set('langpair', `en|${targetLang}`);
+
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'StartupNewsRoom/1.0' },
+        });
+        if (!res.ok) {
+            throw new Error(`MyMemory returned ${res.status}`);
+        }
+
+        const data = (await res.json()) as {
+            responseStatus?: number;
+            responseDetails?: string;
+            responseData?: { translatedText?: string };
+        };
+        if (data.responseStatus !== 200 || typeof data.responseData?.translatedText !== 'string') {
+            throw new Error(data.responseDetails || 'MyMemory returned an invalid response');
+        }
+
+        translatedChunks.push(
+            `${leadingWhitespace}${data.responseData.translatedText}${trailingWhitespace}`,
+        );
+    }
+
+    return translatedChunks.join('');
+}
+
+async function translateChunk(text: string, targetLang: string): Promise<string> {
+    const protectedText = protectJargon(text);
+    const providers = [
+        {
+            translate: () => translateWithGoogle(protectedText, targetLang),
+            restoreJargon: true,
+        },
+        {
+            translate: () => translateWithGoogleClient(text, targetLang),
+            restoreJargon: false,
+        },
+        {
+            translate: () => translateWithMyMemory(text, targetLang),
+            restoreJargon: false,
+        },
+    ];
+    const errors: unknown[] = [];
+
+    for (const provider of providers) {
+        try {
+            const translatedRaw = await provider.translate();
+            const translated = provider.restoreJargon
+                ? restoreJargon(translatedRaw, targetLang)
+                : translatedRaw;
+            if (!isUsableTranslation(text, translated)) {
+                throw new Error('Translation provider returned an incomplete translation');
+            }
+            return translated;
+        } catch (error) {
+            errors.push(error);
         }
     }
-    if (current) chunks.push(current);
-    return chunks.length > 0 ? chunks : [text];
+
+    const reasons = errors
+        .map((error) => (error instanceof Error ? error.message : String(error)))
+        .join('; ');
+    throw new Error(`All translation providers failed: ${reasons}`, { cause: errors[0] });
 }
 
 export async function translateText(text: string, targetLang: string): Promise<string> {
     if (!text || targetLang === 'en') return text;
 
-    const cacheKey = `${targetLang}::${text}`;
-
-    // 1. Check Database Cache
     const cached = await Translation.findOne({ originalText: text, targetLang });
-    if (cached) return cached.translatedText;
-
-    // 2. Check In-Memory Lock (Prevents simultaneous identical requests)
-    if (inFlightTranslations.has(cacheKey)) {
-        return inFlightTranslations.get(cacheKey)!;
+    if (cached && isUsableTranslation(text, cached.translatedText)) {
+        return cached.translatedText;
     }
 
-    // 3. Create the Translation Promise
+    const cacheKey = `${targetLang}::${text}`;
+    const pending = inFlightTranslations.get(cacheKey);
+    if (pending) return pending;
+
     const translationPromise = (async () => {
-        try {
-            const protectedText = protectJargon(text);
-            const chunks = chunkText(protectedText, 1500);
-            const translatedChunks: string[] = [];
-
-            for (const chunk of chunks) {
-                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodeURIComponent(chunk)}`;
-
-                // Add a small delay between chunk requests to avoid Google blocking
-                await new Promise(r => setTimeout(r, 200));
-
-                const res = await fetch(url, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'application/json',
-                    }
-                });
-
-                if (!res.ok) throw new Error(`Google Translate API failed with ${res.status}`);
-
-                const data = (await res.json()) as any;
-                const translatedRaw = data[0].map((item: any) => item[0]).join('');
-                translatedChunks.push(translatedRaw);
+        const chunks = splitText(text);
+        const translatedChunks: string[] = [];
+        for (const chunk of chunks) {
+            if (translatedChunks.length > 0) {
+                await new Promise((resolve) => setTimeout(resolve, 200));
             }
+            const leadingWhitespace = chunk.match(/^\s*/)?.[0] ?? '';
+            const trailingWhitespace = chunk.match(/\s*$/)?.[0] ?? '';
+            const end = chunk.length - trailingWhitespace.length;
+            const translatableText = chunk.slice(leadingWhitespace.length, end);
+            const translated = translatableText
+                ? await translateChunk(translatableText, targetLang)
+                : '';
+            translatedChunks.push(`${leadingWhitespace}${translated}${trailingWhitespace}`);
+        }
 
-            const finalTranslation = restoreJargon(translatedChunks.join(' '), targetLang);
-
-            // Save to DB
+        const finalTranslation = translatedChunks.join('');
+        if (cached) {
+            await Translation.updateOne(
+                { _id: cached._id },
+                { $set: { translatedText: finalTranslation } },
+            );
+        } else {
             await Translation.create({
                 originalText: text,
                 targetLang,
                 translatedText: finalTranslation,
             });
-
-            return finalTranslation;
-        } catch (error) {
-            console.error('Translation error:', error);
-            throw new Error('Translation failed');
-        } finally {
-            // Remove the lock regardless of success/failure
-            inFlightTranslations.delete(cacheKey);
         }
+
+        return finalTranslation;
     })();
 
-    // Store the lock
     inFlightTranslations.set(cacheKey, translationPromise);
-    return translationPromise;
+    try {
+        return await translationPromise;
+    } finally {
+        inFlightTranslations.delete(cacheKey);
+    }
 }
