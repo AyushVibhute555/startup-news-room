@@ -72,6 +72,7 @@ export function Footer() {
               <li><Link to="/about" className={linkCls}>{t("nav.about")}</Link></li>
               <li><Link to="/archive" className={linkCls}>{t("nav.archive")}</Link></li>
               <li><Link to="/contact" className={linkCls}>{t("nav.contact")}</Link></li>
+              <li><Link to="/post-news" className={linkCls}>{t("nav.postNews")}</Link></li>
               <li><Link to="/advertise" className={linkCls}>{t("nav.advertise")}</Link></li>
             </ul>
           </nav>

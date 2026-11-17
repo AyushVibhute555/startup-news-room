@@ -45,6 +45,7 @@ const storySchema = new Schema(
         isFeatured: { type: Boolean, default: false },
         isBreaking: { type: Boolean, default: false },
         createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+        newsSubmissionId: { type: Schema.Types.ObjectId, ref: 'NewsSubmission', immutable: true },
     },
     {
         timestamps: true,
@@ -64,6 +65,7 @@ storySchema.index({ region: 1, status: 1, publishedAt: -1 });
 storySchema.index({ category: 1, status: 1, publishedAt: -1 });
 storySchema.index({ isFeatured: 1 });
 storySchema.index({ isBreaking: 1, publishedAt: -1 });
+storySchema.index({ newsSubmissionId: 1 }, { unique: true, sparse: true });
 storySchema.index(
     { title: 'text', tags: 'text', summary: 'text', companies: 'text' },
     { weights: { title: 10, companies: 8, tags: 5, summary: 2 }, name: 'story_text' },

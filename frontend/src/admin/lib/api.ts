@@ -72,6 +72,27 @@ export interface AdminStory {
     updatedAt: string;
 }
 
+export interface AdminNewsSubmission {
+    _id: string;
+    submitterName: string;
+    submitterEmail: string;
+    title: string;
+    summary: string;
+    content: string;
+    author: string;
+    imageUrl: string;
+    imageCredit: string;
+    imagePublicId: string;
+    category: string;
+    publishedAt: string | null;
+    status: "pending" | "published" | "rejected";
+    reviewedBy: string | null;
+    reviewedAt: string | null;
+    storyId: string | null;
+    rejectionReason: string;
+    createdAt: string;
+}
+
 export interface AdminCategory {
     _id: string;
     name: string;
@@ -237,6 +258,38 @@ export const stories = {
     },
     async remove(id: string): Promise<void> {
         await json(await adminFetch(`/admin/stories/${id}`, { method: "DELETE" }));
+    },
+};
+
+export interface PublishNewsSubmissionPayload {
+    title: string;
+    summary: string;
+    content: string;
+    author?: string;
+    imageUrl: string;
+    imageCredit?: string;
+    category: string;
+    publishedAt?: string | null;
+}
+
+export const newsSubmissions = {
+    async list(status: AdminNewsSubmission["status"] = "pending", page = 1, limit = 50): Promise<Paginated<AdminNewsSubmission>> {
+        const qs = new URLSearchParams({ status, page: String(page), limit: String(limit) });
+        return json<Paginated<AdminNewsSubmission>>(await adminFetch(`/admin/news-submissions?${qs}`));
+    },
+    async publish(id: string, payload: PublishNewsSubmissionPayload): Promise<AdminStory> {
+        const res = await adminFetch(`/admin/news-submissions/${id}/publish`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+        });
+        return (await json<Envelope<AdminStory>>(res)).data;
+    },
+    async reject(id: string, reason: string): Promise<AdminNewsSubmission> {
+        const res = await adminFetch(`/admin/news-submissions/${id}/reject`, {
+            method: "POST",
+            body: JSON.stringify({ reason }),
+        });
+        return (await json<Envelope<AdminNewsSubmission>>(res)).data;
     },
 };
 

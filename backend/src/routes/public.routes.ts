@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
 import {
     contactLimiter,
+    newsSubmissionLimiter,
     newsletterLimiter,
 } from '../middleware/rateLimits.js';
 import {
     contactSchema,
     listStoriesQuerySchema,
+    newsSubmissionSchema,
     slugParamSchema,
     subscribeSchema,
     unsubscribeQuerySchema,
@@ -25,6 +27,8 @@ import {
     unsubscribeHandler,
 } from '../controllers/newsletter.controller.js';
 import { contactHandler } from '../controllers/contact.controller.js';
+import { submitNews } from '../controllers/newsSubmission.controller.js';
+import { upload } from '../controllers/admin.upload.controller.js';
 import { getSitemap, getRss } from '../controllers/seo.controller.js';
 import { translateHandler } from '../controllers/translate.controller.js';
 import { z } from 'zod';
@@ -34,7 +38,12 @@ const router = Router();
 // Cache public GETs at the CDN.
 router.use((req, res, next) => {
     if (req.method === 'GET') {
-        res.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+        res.set(
+            'Cache-Control',
+            req.path === '/stories' || req.path.startsWith('/stories/')
+                ? 'no-store'
+                : 'public, s-maxage=60, stale-while-revalidate=300',
+        );
     }
     next();
 });
@@ -66,6 +75,13 @@ router.get(
 );
 
 router.post('/contact', contactLimiter, validate({ body: contactSchema }), contactHandler);
+router.post(
+    '/news-submissions',
+    newsSubmissionLimiter,
+    upload.single('image'),
+    validate({ body: newsSubmissionSchema }),
+    submitNews,
+);
 
 // Translation Route
 const translateSchema = z.object({

@@ -66,6 +66,7 @@ GET	/api/v1/categories	Categories with public story counts
 POST	/api/v1/newsletter/subscribe	Subscribe (idempotent)
 GET	/api/v1/newsletter/unsubscribe?token=	Unsubscribe
 POST	/api/v1/contact	Contact / tip (honeypot protected)
+POST	/api/v1/news-submissions	Submit one JPEG/PNG/WebP image (≤5 MB) and a story for editorial review (3 submissions per IP per hour); never publishes directly
 Auth
 Method	Path	Auth	Description
 POST	/api/v1/auth/login	—	Returns access token + sets refresh cookie
@@ -78,6 +79,9 @@ GET	/api/v1/admin/stories	All stories, any status
 POST	/api/v1/admin/stories	Create story
 PATCH	/api/v1/admin/stories/:id	Partial update
 DELETE	/api/v1/admin/stories/:id	Delete (admin only)
+GET	/api/v1/admin/news-submissions?status=pending	List community submissions (admin only)
+POST	/api/v1/admin/news-submissions/:id/publish	Publish an edited submission (admin only)
+POST	/api/v1/admin/news-submissions/:id/reject	Reject a pending submission (admin only)
 POST	/api/v1/admin/uploads/image	Upload image (image field, ≤5 MB)
 POST	/api/v1/admin/link-preview	OG metadata extractor (SSRF-safe)
 GET	/api/v1/admin/categories	List categories
@@ -143,3 +147,5 @@ Validation: every body, query and param passes through zod with .strict(), which
 Link preview SSRF guard: protocol allowlist, DNS resolution with private/loopback/link-local/metadata rejection, redirect revalidation (max 3), 5 s timeout, 1 MB body cap, text/html only.
 
 Storage abstraction: StorageService interface in services/storage.service.ts so Cloudinary can be swapped out later.
+
+Community news is stored in the separate NewsSubmission collection with a pending status. Public submissions are rate limited, accept exactly one JPEG, PNG or WebP image up to 5 MB, and validate the actual image signature before uploading. Only admins can review, edit, publish or reject a submission; publishing creates a public Story and links it to the submission to make retries safe.

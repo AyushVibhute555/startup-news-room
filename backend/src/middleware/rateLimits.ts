@@ -46,6 +46,15 @@ export const contactLimiter = rateLimit({
     message: { error: { code: 'RATE_LIMITED', message: 'Too many messages. Try again later.' } },
 });
 
+export const newsSubmissionLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 3,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    skip,
+    message: { error: { code: 'RATE_LIMITED', message: 'Too many news submissions. Try again later.' } },
+});
+
 export const linkPreviewLimiter = rateLimit({
     windowMs: 60 * 1000,
     limit: 30,

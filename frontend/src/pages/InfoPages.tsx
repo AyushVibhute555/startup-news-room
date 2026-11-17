@@ -144,6 +144,9 @@ export function ContactPage() {
             <span className="font-semibold text-foreground">"Tip:"</span>{" "}
             {t("info.contact.tipHintSuffix")}
           </p>
+          <Link to="/post-news" className={`${btnPrimary()} mt-5`}>
+            {t("postNews.submit")}
+          </Link>
         </aside>
       </div>
     </Container>

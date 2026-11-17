@@ -31,5 +31,19 @@ export const contactSchema = z
     })
     .strict();
 
+export const newsSubmissionSchema = z.object({
+    submitterName: z.string().trim().min(2).max(120),
+    submitterEmail: emailField,
+    title: z.string().trim().min(10).max(180),
+    summary: z.string().trim().min(40).max(500),
+    content: z.string().trim().min(1).max(50000),
+    author: z.string().trim().max(120).optional(),
+    imageCredit: z.string().trim().max(200).optional(),
+    category: z.string().trim().toLowerCase().min(1).max(80),
+    publishedAt: z.coerce.date().optional(),
+    website: z.string().max(500).optional(),
+}).strict();
+
 export type ListStoriesQuery = z.infer<typeof listStoriesQuerySchema>;
 export type ContactBody = z.infer<typeof contactSchema>;
+export type NewsSubmissionBody = z.infer<typeof newsSubmissionSchema>;

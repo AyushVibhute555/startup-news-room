@@ -13,17 +13,20 @@ import { dayLabel, formatClock } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
 import { categories } from "@/data/categories";
 import type { Category, Story } from "@/types/story";
-import { getCategoryLabel } from "@/i18n/categoryLabel";
 
+// 👇 Bulletproof StoryGrid that prevents React crashes
 function StoryGrid({ stories }: { stories: Story[] }) {
+  const validStories = (stories || []).filter(Boolean);
+
   return (
-    <RevealGroup className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-      {stories.map((s) => (
-        <RevealItem key={s._id} className="h-full">
+    <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+      {validStories.map((s, idx) => (
+        // Using index in the key prevents crashes if the backend ever returns duplicate IDs
+        <div key={`${s._id || "story"}-${idx}`} className="h-full">
           <StoryCard story={s} />
-        </RevealItem>
+        </div>
       ))}
-    </RevealGroup>
+    </div>
   );
 }
 
@@ -65,24 +68,40 @@ function CategoryPageInner({ category }: { category: Category }) {
     let alive = true;
     setLoading(true);
     setError(false);
+
     getStories({ category: category.slug, page, limit: 9 })
       .then((r) => {
         if (!alive) return;
-        setItems((prev) => (page === 1 ? r.items : [...prev, ...r.items]));
-        setHasMore(r.hasMore);
+        // 👇 Safe fallback to empty array if items is missing
+        const newItems = r?.items || [];
+        setItems((prev) => (page === 1 ? newItems : [...prev, ...newItems]));
+        setHasMore(r?.hasMore || false);
       })
-      .catch(() => alive && setError(true))
+      .catch((err) => {
+        console.error("Pagination fetch failed:", err);
+        if (alive) {
+          if (page === 1) {
+            setError(true); // Only show full error if the first page fails
+          } else {
+            setHasMore(false); // If load more fails, just hide the button and keep existing stories
+          }
+        }
+      })
       .finally(() => alive && setLoading(false));
+
     return () => {
       alive = false;
     };
   }, [category.slug, page, tick]);
 
+  // Safe category label fallback
+  const categoryName = category.name || category.slug || "Category";
+
   return (
     <Container className="section-y !pt-12">
       <PageTitle
         eyebrow={t("category.eyebrow")}
-        title={getCategoryLabel(category.slug, t, category.name)}
+        title={categoryName}
       >
         {category.description}
       </PageTitle>
@@ -124,17 +143,14 @@ function CategoryPageInner({ category }: { category: Category }) {
 export function CategoryPage() {
   const { t } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
-  const {
-    data: liveCategories,
-    loading: categoriesLoading,
-    error: categoriesError,
-    retry: retryCategories,
-  } = useApi(getCategories, []);
+  const { data: liveCategories, loading, error, retry } = useApi(getCategories, []);
+
+  // Safe fallback to static categories if the API is slow or fails
   const category =
     liveCategories?.find((c) => c.slug === slug) ??
     categories.find((c) => c.slug === slug);
 
-  if (!category && categoriesLoading) {
+  if (!category && loading) {
     return (
       <Container className="section-y !pt-12">
         <GridSkeleton count={6} />
@@ -142,10 +158,10 @@ export function CategoryPage() {
     );
   }
 
-  if (!category && categoriesError) {
+  if (!category && error) {
     return (
       <Container className="section-y !pt-12">
-        <ErrorState onRetry={retryCategories} />
+        <ErrorState onRetry={retry} />
       </Container>
     );
   }
@@ -166,8 +182,10 @@ export function CategoryPage() {
 export function ArchivePage() {
   const { t } = useTranslation();
   const { data, loading, error, retry } = useApi(() => getStories({ limit: 100 }), []);
+
   const groups = new Map<string, Story[]>();
-  data?.items.forEach((s) => {
+  (data?.items || []).forEach((s) => {
+    if (!s.publishedAt) return;
     const k = dayLabel(s.publishedAt);
     groups.set(k, [...(groups.get(k) ?? []), s]);
   });
@@ -189,33 +207,38 @@ export function ArchivePage() {
                 {day}
               </h2>
               <ul>
-                {list.map((s) => (
-                  <li
-                    key={s._id}
-                    className="group relative grid grid-cols-[3.5rem_1fr] gap-4 border-b border-border py-4 sm:grid-cols-[5rem_1fr_auto]"
-                  >
-                    <time
-                      dateTime={s.publishedAt}
-                      className="pt-1 text-[0.8125rem] tabular-nums text-muted-foreground"
-                      suppressHydrationWarning
+                {list.map((s, idx) => {
+                  // Safe fallback for categories
+                  const primaryCategory = (s as any).categories?.[0] || (s as any).category || "news";
+
+                  return (
+                    <li
+                      key={`${s._id || "story"}-${idx}`}
+                      className="group relative grid grid-cols-[3.5rem_1fr] gap-4 border-b border-border py-4 sm:grid-cols-[5rem_1fr_auto]"
                     >
-                      {formatClock(s.publishedAt)}
-                    </time>
-                    <div className="min-w-0">
-                      <h3 className="headline text-[1.125rem]">
-                        <StoryLink story={s}>
-                          <span className="link-underline">
-                            <TranslatedText text={s.title} />
-                          </span>
-                        </StoryLink>
-                      </h3>
-                      <StoryMeta story={s} className="mt-1" />
-                    </div>
-                    <span className="hidden pt-1.5 text-xs font-label uppercase tracking-wide text-muted-foreground sm:inline-flex">
-                      {getCategoryLabel(s.categories?.[0] ?? "news", t)}
-                    </span>
-                  </li>
-                ))}
+                      <time
+                        dateTime={s.publishedAt}
+                        className="pt-1 text-[0.8125rem] tabular-nums text-muted-foreground"
+                        suppressHydrationWarning
+                      >
+                        {formatClock(s.publishedAt)}
+                      </time>
+                      <div className="min-w-0">
+                        <h3 className="headline text-[1.125rem]">
+                          <StoryLink story={s}>
+                            <span className="link-underline">
+                              <TranslatedText text={s.title} />
+                            </span>
+                          </StoryLink>
+                        </h3>
+                        <StoryMeta story={s} className="mt-1" />
+                      </div>
+                      <span className="hidden pt-1.5 text-xs font-label uppercase tracking-wide text-muted-foreground sm:inline-flex">
+                        {t(`categories.${primaryCategory}`)}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ))

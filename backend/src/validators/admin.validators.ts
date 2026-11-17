@@ -55,6 +55,27 @@ export const adminListStoriesQuerySchema = z
     })
     .strict();
 
+export const adminNewsSubmissionsQuerySchema = z.object({
+    status: z.enum(['pending', 'published', 'rejected']).default('pending'),
+    page: pageQuery,
+    limit: limitQuery(50, 20),
+}).strict();
+
+export const publishNewsSubmissionSchema = z.object({
+    title: z.string().trim().min(10).max(180),
+    summary: z.string().trim().min(40).max(500),
+    content: z.string().trim().min(1).max(50000),
+    author: z.string().trim().max(120).optional(),
+    imageUrl: httpsUrl,
+    imageCredit: z.string().trim().max(200).optional(),
+    category: z.string().trim().toLowerCase().min(1).max(80),
+    publishedAt: z.coerce.date().nullable().optional(),
+}).strict();
+
+export const rejectNewsSubmissionSchema = z.object({
+    reason: z.string().trim().max(500).optional(),
+}).strict();
+
 export const idParamSchema = z.object({ id: objectId }).strict();
 export const linkPreviewSchema = z.object({ url: z.string().url().max(2048) }).strict();
 
@@ -75,3 +96,4 @@ export const subscribersQuerySchema = z.object({ status: z.enum(['active', 'unsu
 
 export type CreateStoryInput = z.infer<typeof createStorySchema>;
 export type UpdateStoryInput = z.infer<typeof updateStorySchema>;
+export type PublishNewsSubmissionInput = z.infer<typeof publishNewsSubmissionSchema>;

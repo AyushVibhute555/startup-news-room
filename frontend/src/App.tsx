@@ -9,6 +9,7 @@ import { StoryPageWrapper } from "@/pages/StoryPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { AdminRoot } from "@/admin/AdminRoot";
 import { LatestUpdatesPage } from "@/pages/LatestUpdatesPage";
+import { PostNewsPage } from "@/pages/PostNewsPage";
 
 export function App() {
   const location = useLocation();
@@ -28,6 +29,7 @@ export function App() {
             <Route path="/latest" element={<LatestUpdatesPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/post-news" element={<PostNewsPage />} />
             <Route path="/advertise" element={<AdvertisePage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />

@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 
 const links = [
     { to: "/admin/stories", label: "Stories" },
+    { to: "/admin/news-submissions", label: "News submissions", adminOnly: true },
     { to: "/admin/categories", label: "Categories" },
     { to: "/admin/messages", label: "Messages" },
     { to: "/admin/subscribers", label: "Subscribers" },
@@ -25,7 +26,7 @@ export function AdminLayout() {
                     <div className="flex items-center gap-6">
                         <span className="font-label font-semibold">SNR Admin</span>
                         <nav className="flex gap-1">
-                            {links.map((l) => (
+                            {links.filter((link) => !link.adminOnly || user?.role === "admin").map((l) => (
                                 <NavLink
                                     key={l.to}
                                     to={l.to}

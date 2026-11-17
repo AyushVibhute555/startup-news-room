@@ -252,7 +252,7 @@ export interface StoryInput {
     isBreaking?: boolean;
 }
 
-async function assertCategoryExists(slug: string): Promise<void> {
+export async function assertCategoryExists(slug: string): Promise<void> {
     const exists = await Category.exists({ slug });
     if (!exists) {
         throw ApiError.badRequest('VALIDATION_ERROR', 'Unknown category', [

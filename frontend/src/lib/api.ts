@@ -192,6 +192,31 @@ export interface ContactPayload {
   type?: "contact" | "tip";
 }
 
+export interface NewsSubmissionPayload {
+  submitterName: string;
+  submitterEmail: string;
+  title: string;
+  summary: string;
+  content: string;
+  author?: string;
+  imageCredit?: string;
+  category: string;
+  publishedAt?: string;
+}
+
+export async function submitNewsStory(payload: NewsSubmissionPayload, image: File): Promise<void> {
+  const form = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined) form.append(key, value);
+  });
+  form.append("website", "");
+  form.append("image", image);
+  await request<BackendEnvelope<{ received: true }>>("/news-submissions", {
+    method: "POST",
+    body: form,
+  });
+}
+
 export async function sendContactMessage(payload: ContactPayload): Promise<void> {
   await request<BackendEnvelope<{ received: true }>>("/contact", {
     method: "POST",

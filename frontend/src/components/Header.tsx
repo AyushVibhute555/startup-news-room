@@ -155,6 +155,9 @@ export function Header() {
                 <Search className="h-4 w-4" />
               </button>
               <ThemeToggle className="hidden lg:inline-flex text-[#101312] hover:bg-black/5" />
+              <Link to="/post-news" className="hidden lg:inline-flex min-h-[38px] items-center justify-center rounded-[4px] border border-[#101312] px-4 text-xs font-semibold text-[#101312] transition-colors duration-200 hover:bg-black/5">
+                {t("nav.postNews")}
+              </Link>
               <a href="#newsletter" className="ml-2 hidden lg:inline-flex min-h-[38px] items-center justify-center rounded-[4px] bg-[#101312] px-4 text-xs font-semibold text-[#F2F4F3] transition-colors duration-200 hover:bg-signal hover:text-white">
                 {t("header.subscribe")}
               </a>
@@ -181,6 +184,11 @@ export function Header() {
                             <NavLink item={n} onClick={() => setMenuOpen(false)} className={cn("font-label flex min-h-[52px] items-center text-2xl font-bold transition-colors duration-200 hover:text-signal", active === n.slug ? "text-[#101312]" : "text-[#565C5A]")} />
                           </li>
                         ))}
+                        <li>
+                          <Link to="/post-news" onClick={() => setMenuOpen(false)} className="font-label flex min-h-[52px] items-center text-2xl font-bold text-[#565C5A] transition-colors duration-200 hover:text-signal">
+                            {t("nav.postNews")}
+                          </Link>
+                        </li>
                       </ul>
                     </nav>
                     <div className="mt-auto flex flex-col gap-4 pt-8">

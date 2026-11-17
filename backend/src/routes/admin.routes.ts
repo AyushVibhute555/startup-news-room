@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { linkPreviewLimiter } from '../middleware/rateLimits.js';
 import {
+    adminNewsSubmissionsQuerySchema,
     adminListStoriesQuerySchema,
     createCategorySchema,
     createStorySchema,
@@ -10,6 +11,8 @@ import {
     linkPreviewSchema,
     markMessageSchema,
     messagesQuerySchema,
+    publishNewsSubmissionSchema,
+    rejectNewsSubmissionSchema,
     subscribersQuerySchema,
     updateCategorySchema,
     updateStorySchema,
@@ -20,6 +23,11 @@ import {
     listStories,
     updateStory,
 } from '../controllers/admin.story.controller.js';
+import {
+    listNewsSubmissionsHandler,
+    publishNewsSubmissionHandler,
+    rejectNewsSubmissionHandler,
+} from '../controllers/newsSubmission.controller.js';
 import {
     create as createCategory,
     list as listCategories,
@@ -51,6 +59,25 @@ router.delete(
     requireRole('admin'),
     validate({ params: idParamSchema }),
     deleteStory,
+);
+
+router.get(
+    '/news-submissions',
+    requireRole('admin'),
+    validate({ query: adminNewsSubmissionsQuerySchema }),
+    listNewsSubmissionsHandler,
+);
+router.post(
+    '/news-submissions/:id/publish',
+    requireRole('admin'),
+    validate({ params: idParamSchema, body: publishNewsSubmissionSchema }),
+    publishNewsSubmissionHandler,
+);
+router.post(
+    '/news-submissions/:id/reject',
+    requireRole('admin'),
+    validate({ params: idParamSchema, body: rejectNewsSubmissionSchema }),
+    rejectNewsSubmissionHandler,
 );
 
 // ── Uploads & previews ───────────────────────────────────────────────────

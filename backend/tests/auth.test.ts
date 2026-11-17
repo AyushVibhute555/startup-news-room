@@ -139,10 +139,11 @@ describe('admin story creation', () => {
                 title: 'An Admin Created Story That Passes Validation',
                 summary:
                     'A summary created through the admin API that is definitely longer than forty characters.',
+                content: 'The full article body is required before a story can be published.',
                 imageUrl: 'https://images.example.com/a.jpg',
                 sourceName: 'Example',
                 sourceUrl: 'https://example.com/a',
-                category: 'ai',
+                categories: ['ai'],
                 tags: ['Admin', 'admin', 'API'],
                 status: 'published',
             });
