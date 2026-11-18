@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { KeyFactsEditor } from "@/components/KeyFactsEditor";
+import type { KeyFact } from "@/types/story";
 import {
     adminErrorMessage,
     categories as categoriesApi,
@@ -10,7 +12,8 @@ import {
 } from "../lib/api";
 
 type SubmissionStatus = AdminNewsSubmission["status"];
-type ReviewFields = Pick<AdminNewsSubmission, "title" | "summary" | "content" | "author" | "imageUrl" | "imageCredit" | "category"> & {
+type ReviewFields = Omit<Pick<AdminNewsSubmission, "title" | "summary" | "content" | "keyFacts" | "author" | "imageUrl" | "imageCredit" | "category">, "keyFacts"> & {
+    keyFacts: KeyFact[];
     publishedAt: string;
 };
 
@@ -27,6 +30,7 @@ function submissionToFields(submission: AdminNewsSubmission): ReviewFields {
         title: submission.title,
         summary: submission.summary,
         content: submission.content,
+        keyFacts: submission.keyFacts ?? [],
         author: submission.author || submission.submitterName,
         imageUrl: submission.imageUrl,
         imageCredit: submission.imageCredit || "",
@@ -94,6 +98,10 @@ export function NewsSubmissionsPage() {
 
     async function publish() {
         if (!selectedId || !fields) return;
+        if (fields.keyFacts.some((fact) => Boolean(fact.label.trim()) !== Boolean(fact.value.trim()))) {
+            toast.error("Complete both the label and value for each key fact, or remove the empty row.");
+            return;
+        }
         const newsDate = fields.publishedAt ? new Date(fields.publishedAt) : undefined;
         if (newsDate && Number.isNaN(newsDate.getTime())) {
             toast.error("Enter a valid news date and time.");
@@ -103,6 +111,9 @@ export function NewsSubmissionsPage() {
             title: fields.title.trim(),
             summary: fields.summary.trim(),
             content: fields.content.trim(),
+            keyFacts: fields.keyFacts
+                .filter((fact) => fact.label.trim() && fact.value.trim())
+                .map((fact) => ({ label: fact.label.trim(), value: fact.value.trim() })),
             imageUrl: fields.imageUrl.trim(),
             imageCredit: fields.imageCredit.trim(),
             category: fields.category,
@@ -222,7 +233,18 @@ export function NewsSubmissionsPage() {
                             <label className="block text-sm font-medium">
                                 News article
                                 <textarea value={fields.content} onChange={(event) => update("content", event.target.value)} maxLength={50000} rows={12} className="mt-1 w-full rounded border border-border bg-background px-3 py-2 font-mono text-sm" />
+                                <span className="mt-1 block text-xs text-muted-foreground">Blank lines create paragraphs; use # headings, **bold**, - bullets, or 1. numbered lists.</span>
                             </label>
+                            <KeyFactsEditor
+                                id="review-key-facts"
+                                title="Key facts (optional)"
+                                labelText="Label"
+                                valueText="Value"
+                                addText="Add key fact"
+                                removeText="Remove"
+                                facts={fields.keyFacts}
+                                onChange={(keyFacts) => update("keyFacts", keyFacts)}
+                            />
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <label className="block text-sm font-medium">
                                     Article author

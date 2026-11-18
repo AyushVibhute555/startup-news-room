@@ -6,6 +6,10 @@ const httpUrl = z.string().url().refine((u) => /^https?:\/\//i.test(u), 'Must be
 
 const tagsField = z.array(z.string().trim().min(1).max(40)).max(8).optional();
 const companiesField = z.array(z.string().trim().min(1).max(80)).optional();
+const keyFactsField = z.array(z.object({
+    label: z.string().trim().min(1).max(80),
+    value: z.string().trim().min(1).max(300),
+}).strict()).max(8).optional();
 
 const fundingDetailsSchema = z.object({
     amountINR: z.string().trim().max(50).optional(),
@@ -29,6 +33,7 @@ export const createStorySchema = z
         region: z.enum(['Karnataka', 'India', 'Global']).optional(),
         city: z.string().trim().max(80).optional(),
         companies: companiesField,
+        keyFacts: keyFactsField,
         fundingDetails: fundingDetailsSchema,
         isSponsored: z.boolean().optional(),
         sponsorName: z.string().trim().max(120).optional(),
@@ -65,6 +70,7 @@ export const publishNewsSubmissionSchema = z.object({
     title: z.string().trim().min(10).max(180),
     summary: z.string().trim().min(40).max(500),
     content: z.string().trim().min(1).max(50000),
+    keyFacts: keyFactsField,
     author: z.string().trim().max(120).optional(),
     imageUrl: httpsUrl,
     imageCredit: z.string().trim().max(200).optional(),

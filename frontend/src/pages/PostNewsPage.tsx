@@ -4,8 +4,9 @@ import { toast } from "sonner";
 import { btnPrimary } from "@/components/Buttons";
 import { Container } from "@/components/Container";
 import { PageTitle } from "@/pages/ListingPages";
+import { KeyFactsEditor } from "@/components/KeyFactsEditor";
 import { ApiError, getCategories, submitNewsStory } from "@/lib/api";
-import type { Category } from "@/types/story";
+import type { Category, KeyFact } from "@/types/story";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -16,6 +17,7 @@ interface SubmissionFields {
   title: string;
   summary: string;
   content: string;
+  keyFacts: KeyFact[];
   author: string;
   imageCredit: string;
   category: string;
@@ -28,6 +30,7 @@ const emptyFields: SubmissionFields = {
   title: "",
   summary: "",
   content: "",
+  keyFacts: [],
   author: "",
   imageCredit: "",
   category: "",
@@ -139,6 +142,9 @@ export function PostNewsPage() {
     if (fields.summary.trim().length < 40) nextErrors.summary = t("postNews.subheadingError");
     if (fields.summary.trim().length > 500) nextErrors.summary = t("postNews.subheadingLengthError");
     if (!fields.content.trim()) nextErrors.content = t("postNews.articleError");
+    if (fields.keyFacts.some((fact) => Boolean(fact.label.trim()) !== Boolean(fact.value.trim()))) {
+      nextErrors.keyFacts = t("postNews.keyFactsError");
+    }
     if (!fields.category) nextErrors.category = t("postNews.categoryError");
     const newsDate = fields.publishedAt ? new Date(fields.publishedAt) : null;
     if (newsDate && Number.isNaN(newsDate.getTime())) nextErrors.publishedAt = t("postNews.newsDateError");
@@ -159,6 +165,9 @@ export function PostNewsPage() {
           title: fields.title.trim(),
           summary: fields.summary.trim(),
           content: fields.content.trim(),
+          keyFacts: fields.keyFacts
+            .filter((fact) => fact.label.trim() && fact.value.trim())
+            .map((fact) => ({ label: fact.label.trim(), value: fact.value.trim() })),
           author: fields.author.trim(),
           imageCredit: fields.imageCredit.trim(),
           category: fields.category,
@@ -266,6 +275,17 @@ export function PostNewsPage() {
               />
               <p className="mt-1 text-xs text-muted-foreground">{t("postNews.articleHint")}</p>
             </FormField>
+            <KeyFactsEditor
+              id="submission-key-facts"
+              title={t("postNews.keyFacts")}
+              labelText={t("postNews.keyFactLabel")}
+              valueText={t("postNews.keyFactValue")}
+              addText={t("postNews.addKeyFact")}
+              removeText={t("postNews.removeKeyFact")}
+              facts={fields.keyFacts}
+              onChange={(keyFacts) => update("keyFacts", keyFacts)}
+              error={errors.keyFacts}
+            />
 
             <div className="grid gap-6 sm:grid-cols-2">
               <FormField id="storyAuthor" label={t("postNews.author")}>

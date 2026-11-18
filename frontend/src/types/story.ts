@@ -9,6 +9,11 @@ export interface Category {
   description: string;
 }
 
+export interface KeyFact {
+  label: string;
+  value: string;
+}
+
 export interface Story {
   _id: string;
   title: string;
@@ -26,6 +31,7 @@ export interface Story {
   region?: Region;
   city?: string;
   companies?: string[];
+  keyFacts?: KeyFact[];
   fundingDetails?: {
     amountINR?: string;
     amountUSD?: string;

@@ -10,6 +10,20 @@ beforeAll(async () => {
 });
 
 describe('public story visibility', () => {
+    it('formats legacy plain-text article content when serving it without changing stored data', async () => {
+        const story = await Story.create(
+            storyPayload({ title: 'Legacy Plain Text Story Formatting Check' }),
+        );
+        const legacyContent = 'First paragraph.\n\nSecond paragraph.';
+        await Story.collection.updateOne({ _id: story._id }, { $set: { content: legacyContent } });
+
+        const response = await request(app).get(`/api/v1/stories/${story.slug}`);
+        expect(response.status).toBe(200);
+        expect(response.body.data.content).toContain('<p>First paragraph.</p>');
+        expect(response.body.data.content).toContain('<p>Second paragraph.</p>');
+        expect((await Story.findById(story._id))?.content).toBe(legacyContent);
+    });
+
     it('hides drafts and future-dated stories', async () => {
         await Story.create(storyPayload({ title: 'Published Story Alpha For Visibility Test' }));
 
@@ -155,6 +169,16 @@ describe('slug behaviour', () => {
         );
         expect(b.slug).not.toBe(slugA);
         expect(b.slug.startsWith(slugA)).toBe(true);
+    });
+
+    it('drops currency and percent symbols instead of transliterating them into slugs', async () => {
+        const story = await Story.create(
+            storyPayload({
+                title: 'Olyv Raises ₹58 Crore As $100 Million Round Grows 39%',
+            }),
+        );
+
+        expect(story.slug).toBe('olyv-raises-58-crore-as-100-million-round-grows-39');
     });
 
     it('enforces a single featured story', async () => {

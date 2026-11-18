@@ -3,6 +3,14 @@ import slugify from 'slugify';
 import { nanoid } from 'nanoid';
 import { stripHtml, sanitizeContent } from '../utils/sanitize.js';
 
+const keyFactSchema = new Schema(
+    {
+        label: { type: String, required: true, trim: true, maxlength: 80 },
+        value: { type: String, required: true, trim: true, maxlength: 300 },
+    },
+    { _id: false },
+);
+
 const storySchema = new Schema(
     {
         title: { type: String, required: true, trim: true, minlength: 10, maxlength: 180 },
@@ -23,6 +31,7 @@ const storySchema = new Schema(
         region: { type: String, enum: ['Karnataka', 'India', 'Global'], default: 'India' },
         city: { type: String, default: '', trim: true, maxlength: 80 },
         companies: { type: [String], default: [] },
+        keyFacts: { type: [keyFactSchema], default: [], validate: [(facts: unknown[]) => facts.length <= 8, 'A story may have at most 8 key facts'] },
         fundingDetails: {
             amountINR: { type: String, default: '' },
             amountUSD: { type: String, default: '' },
@@ -75,7 +84,6 @@ storySchema.index(
 storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) {
     if (typeof this.title === 'string') this.title = stripHtml(this.title);
     if (typeof this.summary === 'string') this.summary = stripHtml(this.summary);
-    // 👇 Use sanitizeContent to allow tables in the body
     if (typeof this.content === 'string') this.content = sanitizeContent(this.content);
 
     if (Array.isArray(this.tags)) {
@@ -93,7 +101,8 @@ storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) 
     this.readTime = Math.max(1, Math.ceil(words / 200));
 
     if (this.isNew && !this.slug) {
-        const base = slugify(this.title || 'story', { lower: true, strict: true, trim: true }) || 'story';
+        const titleWithoutSymbols = (this.title || 'story').replace(/[\p{Sc}%]/gu, '');
+        const base = slugify(titleWithoutSymbols, { lower: true, strict: true, trim: true }) || 'story';
         let candidate = base;
         for (let i = 0; i < 10; i += 1) {
             const clash = await mongoose.model('Story').exists({ slug: candidate });

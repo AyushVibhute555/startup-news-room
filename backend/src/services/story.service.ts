@@ -3,6 +3,7 @@ import { Story, type StoryAttrs } from '../models/Story.js';
 import { Category } from '../models/Category.js';
 import { PUBLIC_STORY_PROJECTION } from '../utils/storyConstants.js';
 import { ApiError } from '../utils/ApiError.js';
+import { sanitizeContent } from '../utils/sanitize.js';
 
 export type PublicStory = Record<string, unknown>;
 
@@ -27,6 +28,12 @@ function stripScore<T>(doc: T): T {
         delete (doc as Record<string, unknown>).score;
     }
     return doc;
+}
+
+function formatPublicStory(doc: Record<string, unknown>): PublicStory {
+    const story = stripScore({ ...doc });
+    if (typeof story.content === 'string') story.content = sanitizeContent(story.content);
+    return story;
 }
 
 export interface ListStoriesParams {
@@ -67,7 +74,7 @@ export async function listPublicStories(params: ListStoriesParams) {
         Story.countDocuments(filter),
     ]);
 
-    const data = docs.map((d) => stripScore(d as Record<string, unknown>));
+    const data = docs.map((d) => formatPublicStory(d as Record<string, unknown>));
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
     return {
@@ -81,19 +88,19 @@ async function findFeaturedOrLatest(): Promise<PublicStory | null> {
         .sort({ publishedAt: -1 })
         .select(publicProjection())
         .lean();
-    if (lead) return lead as PublicStory;
+    if (lead) return formatPublicStory(lead as Record<string, unknown>);
 
     const featured = await Story.findOne(publicStoryFilter({ isFeatured: true }))
         .sort({ publishedAt: -1 })
         .select(publicProjection())
         .lean();
-    if (featured) return featured as PublicStory;
+    if (featured) return formatPublicStory(featured as Record<string, unknown>);
 
     const latest = await Story.findOne(publicStoryFilter())
         .sort({ publishedAt: -1, _id: -1 })
         .select(publicProjection())
         .lean();
-    return (latest as PublicStory) ?? null;
+    return latest ? formatPublicStory(latest as Record<string, unknown>) : null;
 }
 
 export async function getFeaturedStory(): Promise<PublicStory | null> {
@@ -111,7 +118,7 @@ export async function getTopStories(): Promise<PublicStory[]> {
         .select(publicProjection())
         .lean();
 
-    if (pinned.length >= 5) return pinned as PublicStory[];
+    if (pinned.length >= 5) return pinned.map((story) => formatPublicStory(story as Record<string, unknown>));
 
     const excludeIds = [...(featured ? [(featured as any)._id] : []), ...pinned.map((s) => s._id)];
     const remaining = 5 - pinned.length;
@@ -122,7 +129,7 @@ export async function getTopStories(): Promise<PublicStory[]> {
         .select(publicProjection())
         .lean();
 
-    return [...pinned, ...fillers] as PublicStory[];
+    return [...pinned, ...fillers].map((story) => formatPublicStory(story as Record<string, unknown>));
 }
 
 export async function getBreakingStories(): Promise<PublicStory[]> {
@@ -136,13 +143,13 @@ export async function getBreakingStories(): Promise<PublicStory[]> {
     });
 
     const docs = await Story.find(filter).sort({ publishedAt: -1, _id: -1 }).limit(8).select(publicProjection()).lean();
-    return docs as PublicStory[];
+    return docs.map((story) => formatPublicStory(story as Record<string, unknown>));
 }
 
 export async function getStoryBySlug(slug: string): Promise<PublicStory> {
     const doc = await Story.findOne(publicStoryFilter({ slug })).select(publicProjection()).lean();
     if (!doc) throw ApiError.notFound('Story not found');
-    return doc as PublicStory;
+    return formatPublicStory(doc as Record<string, unknown>);
 }
 
 export async function getRelatedStories(slug: string): Promise<PublicStory[]> {
@@ -175,16 +182,16 @@ export async function getRelatedStories(slug: string): Promise<PublicStory[]> {
     });
 
     const sameCategory = await Story.find(base).sort({ publishedAt: -1, _id: -1 }).limit(4).select(publicProjection()).lean();
-    if (sameCategory.length >= 4) return sameCategory as PublicStory[];
+    if (sameCategory.length >= 4) return sameCategory.map((story) => formatPublicStory(story as Record<string, unknown>));
 
     const excludeIds = [story._id, ...sameCategory.map((s) => s._id)];
     const tags = Array.isArray(story.tags) ? story.tags : [];
-    if (tags.length === 0) return sameCategory as PublicStory[];
+    if (tags.length === 0) return sameCategory.map((item) => formatPublicStory(item as Record<string, unknown>));
 
     const byTags = await Story.find(publicStoryFilter({ tags: { $in: tags }, _id: { $nin: excludeIds }, isSponsored: { $ne: true } }))
         .sort({ publishedAt: -1, _id: -1 }).limit(4 - sameCategory.length).select(publicProjection()).lean();
 
-    return [...sameCategory, ...byTags] as PublicStory[];
+    return [...sameCategory, ...byTags].map((item) => formatPublicStory(item as Record<string, unknown>));
 }
 
 // ── Admin ────────────────────────────────────────────────────────────────
@@ -235,6 +242,7 @@ export interface StoryInput {
     region?: 'Karnataka' | 'India' | 'Global';
     city?: string;
     companies?: string[];
+    keyFacts?: { label: string; value: string }[];
     fundingDetails?: {
         amountINR?: string;
         amountUSD?: string;

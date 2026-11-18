@@ -20,6 +20,20 @@ export const unsubscribeQuerySchema = z
     .object({ token: z.string().trim().min(8).max(128) })
     .strict();
 
+const keyFactsSchema = z.array(z.object({
+    label: z.string().trim().min(1).max(80),
+    value: z.string().trim().min(1).max(300),
+}).strict()).max(8);
+
+const multipartKeyFactsSchema = z.preprocess((value) => {
+    if (typeof value !== 'string') return value;
+    try {
+        return JSON.parse(value) as unknown;
+    } catch {
+        return value;
+    }
+}, keyFactsSchema.optional());
+
 export const contactSchema = z
     .object({
         name: z.string().trim().min(2).max(120),
@@ -37,6 +51,7 @@ export const newsSubmissionSchema = z.object({
     title: z.string().trim().min(10).max(180),
     summary: z.string().trim().min(40).max(500),
     content: z.string().trim().min(1).max(50000),
+    keyFacts: multipartKeyFactsSchema,
     author: z.string().trim().max(120).optional(),
     imageCredit: z.string().trim().max(200).optional(),
     category: z.string().trim().toLowerCase().min(1).max(80),

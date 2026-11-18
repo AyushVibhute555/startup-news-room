@@ -1,4 +1,6 @@
 // src/admin/lib/api.ts
+import type { KeyFact } from "@/types/story";
+
 const API_URL = import.meta.env["VITE_API_URL"] ?? "http://localhost:4000/api/v1";
 
 // ── Auth token (module-level, memory only — XSS-safe) ───────────────────
@@ -51,6 +53,7 @@ export interface AdminStory {
     region: "Karnataka" | "India" | "Global";
     city: string;
     companies: string[];
+    keyFacts?: KeyFact[];
     fundingDetails?: {
         amountINR?: string;
         amountUSD?: string;
@@ -79,6 +82,7 @@ export interface AdminNewsSubmission {
     title: string;
     summary: string;
     content: string;
+    keyFacts?: KeyFact[];
     author: string;
     imageUrl: string;
     imageCredit: string;
@@ -265,6 +269,7 @@ export interface PublishNewsSubmissionPayload {
     title: string;
     summary: string;
     content: string;
+    keyFacts?: KeyFact[];
     author?: string;
     imageUrl: string;
     imageCredit?: string;

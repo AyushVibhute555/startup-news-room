@@ -22,7 +22,8 @@ async function submitStory(email = 'reader@example.com') {
         .field('submitterEmail', email)
         .field('title', 'Community Report: New Startup Launches In Bengaluru')
         .field('summary', 'A community-submitted story with a long enough subheading for validation.')
-        .field('content', 'The complete story text supplied by a community reader.')
+        .field('content', 'The complete story text supplied by a community reader.\n\n## Details\n\n- Verified by the contributor')
+        .field('keyFacts', JSON.stringify([{ label: 'Funding', value: '₹58 crore' }]))
         .field('category', 'ai')
         .attach('image', imageBuffer, { filename: 'story.png', contentType: 'image/png' });
 }
@@ -85,7 +86,8 @@ describe('community news submissions', () => {
         const payload = {
             title: 'Edited: Community Report on a New Bengaluru Startup',
             summary: 'Editors reviewed and updated this complete subheading before publication.',
-            content: 'The edited and verified news article is published only after admin approval.',
+            content: 'The edited and verified news article is published only after admin approval.\n\n## Funding\n\n- Raised **₹58 crore**.',
+            keyFacts: [{ label: 'Amount raised', value: '₹58 crore' }],
             author: 'News Desk',
             imageUrl: 'https://res.cloudinary.com/test/image/upload/reviewed.png',
             imageCredit: 'Community contributor',
@@ -100,6 +102,10 @@ describe('community news submissions', () => {
         expect(published.status).toBe(201);
         expect(published.body.data.title).toBe(payload.title);
         expect(published.body.data.status).toBe('published');
+        expect(published.body.data.keyFacts).toEqual(payload.keyFacts);
+        expect(published.body.data.content).toContain('<p>The edited and verified news article is published only after admin approval.</p>');
+        expect(published.body.data.content).toContain('<h3>Funding</h3>');
+        expect(published.body.data.content).toContain('<strong>₹58 crore</strong>');
         expect(new Date(published.body.data.publishedAt).toISOString()).toBe(payload.publishedAt);
 
         const duplicatePublish = await request(app)
@@ -113,6 +119,7 @@ describe('community news submissions', () => {
         const publicStory = await request(app).get(`/api/v1/stories/${published.body.data.slug}`);
         expect(publicStory.status).toBe(200);
         expect(publicStory.body.data.title).toBe(payload.title);
+        expect(publicStory.body.data.keyFacts).toEqual(payload.keyFacts);
         expect(publicStory.headers['cache-control']).toBe('no-store');
 
         const publicFeed = await request(app).get('/api/v1/stories?limit=50');

@@ -4,6 +4,7 @@ export const PUBLIC_STORY_PROJECTION = {
     slug: 1,
     summary: 1,
     content: 1,
+    keyFacts: 1,
     imageUrl: 1,
     imageCredit: 1,
     sourceName: 1,

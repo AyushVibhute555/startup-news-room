@@ -2,7 +2,7 @@
 // The single place the app reads data. Every function hits the Express
 // backend and normalises its response into the shapes the pages expect.
 
-import type { Category, Paginated, Story } from "@/types/story";
+import type { Category, KeyFact, Paginated, Story } from "@/types/story";
 
 // ── Config ──────────────────────────────────────────────────────────────
 const API_URL = import.meta.env["VITE_API_URL"] ?? "http://localhost:4000/api/v1";
@@ -198,6 +198,7 @@ export interface NewsSubmissionPayload {
   title: string;
   summary: string;
   content: string;
+  keyFacts?: KeyFact[];
   author?: string;
   imageCredit?: string;
   category: string;
@@ -207,7 +208,7 @@ export interface NewsSubmissionPayload {
 export async function submitNewsStory(payload: NewsSubmissionPayload, image: File): Promise<void> {
   const form = new FormData();
   Object.entries(payload).forEach(([key, value]) => {
-    if (value !== undefined) form.append(key, value);
+    if (value !== undefined) form.append(key, typeof value === "string" ? value : JSON.stringify(value));
   });
   form.append("website", "");
   form.append("image", image);

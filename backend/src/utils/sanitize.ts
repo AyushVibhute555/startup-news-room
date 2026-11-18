@@ -7,12 +7,78 @@ export function stripHtml(input: string): string {
         .trim();
 }
 
-/** 
- * Allows safe HTML formatting like tables, bold text, and lists 
- * (Used ONLY for the Story Content body).
- */
+function escapeHtml(input: string): string {
+    return input
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function markdownInline(input: string): string {
+    return escapeHtml(input)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+function markdownToHtml(input: string): string {
+    const blocks: string[] = [];
+    let paragraph: string[] = [];
+    let listItems: string[] = [];
+    let listTag: 'ul' | 'ol' | null = null;
+
+    const flushParagraph = () => {
+        if (paragraph.length) {
+            blocks.push(`<p>${paragraph.map(markdownInline).join('<br>')}</p>`);
+            paragraph = [];
+        }
+    };
+    const flushList = () => {
+        if (listTag && listItems.length) {
+            blocks.push(`<${listTag}>${listItems.map((item) => `<li>${markdownInline(item)}</li>`).join('')}</${listTag}>`);
+        }
+        listItems = [];
+        listTag = null;
+    };
+
+    for (const line of input.replace(/\r\n?/g, '\n').split('\n')) {
+        const heading = line.match(/^(#{1,3})\s+(.+)$/);
+        const unorderedItem = line.match(/^\s*[-*+]\s+(.+)$/);
+        const orderedItem = line.match(/^\s*\d+[.)]\s+(.+)$/);
+        const item = unorderedItem ?? orderedItem;
+
+        if (heading) {
+            flushParagraph();
+            flushList();
+            const level = Math.min(heading[1].length + 1, 4);
+            blocks.push(`<h${level}>${markdownInline(heading[2])}</h${level}>`);
+        } else if (item) {
+            flushParagraph();
+            const nextListTag = unorderedItem ? 'ul' : 'ol';
+            if (listTag && listTag !== nextListTag) flushList();
+            listTag = nextListTag;
+            listItems.push(item[1]);
+        } else if (!line.trim()) {
+            flushParagraph();
+            flushList();
+        } else {
+            flushList();
+            paragraph.push(line);
+        }
+    }
+
+    flushParagraph();
+    flushList();
+    return blocks.join('');
+}
+
+/** Converts plain-text Markdown to safe semantic HTML and preserves legacy HTML. */
 export function sanitizeContent(input: string): string {
-    return sanitizeHtml(input, {
+    const content = /<\/?[a-z][\w:-]*(?:\s[^<>]*?)?\s*\/?>/i.test(input)
+        ? input
+        : markdownToHtml(input);
+
+    return sanitizeHtml(content, {
         allowedTags: [
             'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
             'b', 'strong', 'i', 'em', 'u',

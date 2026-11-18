@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { KeyFactsEditor } from "@/components/KeyFactsEditor";
+import type { KeyFact } from "@/types/story";
 import {
     adminErrorMessage,
     categories as categoriesApi,
@@ -17,6 +19,7 @@ interface FormState {
     seoTitle: string;
     summary: string;
     content: string;
+    keyFacts: KeyFact[];
     author: string;
     imageUrl: string;
     imageCredit: string;
@@ -41,7 +44,7 @@ interface FormState {
 }
 
 const empty: FormState = {
-    title: "", seoTitle: "", summary: "", content: "", author: "Staff",
+    title: "", seoTitle: "", summary: "", content: "", keyFacts: [], author: "Staff",
     imageUrl: "", imageCredit: "", categories: [],
     companiesInput: "", tagsInput: "",
     fundingAmountINR: "", fundingAmountUSD: "", fundingRound: "", fundingInvestors: "",
@@ -64,7 +67,7 @@ function fromLocalInput(local: string): string | null {
 
 function storyToForm(s: AdminStory): FormState {
     return {
-        title: s.title, seoTitle: s.seoTitle || "", summary: s.summary, content: s.content,
+        title: s.title, seoTitle: s.seoTitle || "", summary: s.summary, content: s.content, keyFacts: s.keyFacts || [],
         author: s.author || "Staff", imageUrl: s.imageUrl, imageCredit: s.imageCredit,
         categories: s.categories?.length ? s.categories : [s.category].filter(Boolean),
         companiesInput: s.companies.join(", "), tagsInput: s.tags.join(", "),
@@ -128,6 +131,9 @@ export function StoryEditorPage() {
         if (s.length < 40) e.summary = "At least 40 characters";
         if (s.length > 500) e.summary = "At most 500 characters";
         if (!content) e.content = "Required";
+        if (form.keyFacts.some((fact) => Boolean(fact.label.trim()) !== Boolean(fact.value.trim()))) {
+            e.keyFacts = "Complete both the label and value, or remove the empty row.";
+        }
 
         if (!form.imageUrl.startsWith("https://")) e.imageUrl = "Must be an https:// URL";
 
@@ -159,6 +165,9 @@ export function StoryEditorPage() {
             seoTitle: form.seoTitle.trim(),
             summary: form.summary.trim(),
             content: form.content.trim(),
+            keyFacts: form.keyFacts
+                .filter((fact) => fact.label.trim() && fact.value.trim())
+                .map((fact) => ({ label: fact.label.trim(), value: fact.value.trim() })),
             author: form.author.trim(),
             imageUrl: form.imageUrl.trim(),
             imageCredit: form.imageCredit.trim(),
@@ -285,7 +294,7 @@ export function StoryEditorPage() {
                     </div>
                 </Field>
 
-                <Field id="content" label="News Article" error={errors.content} hint="Required · Up to 50,000 characters (HTML allowed)">
+                <Field id="content" label="News Article" error={errors.content} hint="Required · Up to 50,000 characters. Use blank lines for paragraphs, # for headings, **bold**, - for bullets, and 1. for numbered lists.">
                     <textarea
                         id="content"
                         rows={12}
@@ -293,9 +302,20 @@ export function StoryEditorPage() {
                         value={form.content}
                         onChange={(e) => update("content", e.target.value)}
                         className="mt-1 w-full rounded border border-border bg-background px-3 py-2 font-mono text-sm"
-                        placeholder="<p>Paragraph text here...</p>&#10;<table>...</table>"
+                        placeholder={"A paragraph with **important details**.\n\n## Key development\n\n- First point\n- Second point"}
                     />
                 </Field>
+                <KeyFactsEditor
+                    id="story-key-facts"
+                    title="Key facts (optional)"
+                    labelText="Label"
+                    valueText="Value"
+                    addText="Add key fact"
+                    removeText="Remove"
+                    facts={form.keyFacts}
+                    onChange={(keyFacts) => update("keyFacts", keyFacts)}
+                    error={errors.keyFacts}
+                />
             </section>
 
             {/* MEDIA */}

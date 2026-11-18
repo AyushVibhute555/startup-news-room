@@ -1,5 +1,13 @@
 import mongoose, { Schema, type HydratedDocument, type InferSchemaType } from 'mongoose';
-import { sanitizeContent, stripHtml } from '../utils/sanitize.js';
+import { stripHtml } from '../utils/sanitize.js';
+
+const keyFactSchema = new Schema(
+    {
+        label: { type: String, required: true, trim: true, maxlength: 80 },
+        value: { type: String, required: true, trim: true, maxlength: 300 },
+    },
+    { _id: false },
+);
 
 const newsSubmissionSchema = new Schema(
     {
@@ -8,6 +16,7 @@ const newsSubmissionSchema = new Schema(
         title: { type: String, required: true, trim: true, minlength: 10, maxlength: 180 },
         summary: { type: String, required: true, trim: true, minlength: 40, maxlength: 500 },
         content: { type: String, required: true, trim: true, maxlength: 50000 },
+        keyFacts: { type: [keyFactSchema], default: [], validate: [(facts: unknown[]) => facts.length <= 8, 'A story may have at most 8 key facts'] },
         author: { type: String, default: '', trim: true, maxlength: 120 },
         imageUrl: { type: String, required: true, trim: true },
         imagePublicId: { type: String, required: true, trim: true },
@@ -37,7 +46,6 @@ newsSubmissionSchema.index({ status: 1, createdAt: -1 });
 newsSubmissionSchema.pre('validate', function () {
     if (typeof this.title === 'string') this.title = stripHtml(this.title);
     if (typeof this.summary === 'string') this.summary = stripHtml(this.summary);
-    if (typeof this.content === 'string') this.content = sanitizeContent(this.content);
     if (typeof this.author === 'string') this.author = stripHtml(this.author);
 });
 
