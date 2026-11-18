@@ -46,18 +46,21 @@ function markdownToHtml(input: string): string {
         const unorderedItem = line.match(/^\s*[-*+]\s+(.+)$/);
         const orderedItem = line.match(/^\s*\d+[.)]\s+(.+)$/);
         const item = unorderedItem ?? orderedItem;
+        const headingMarks = heading?.[1];
+        const headingText = heading?.[2];
+        const itemText = item?.[1];
 
-        if (heading) {
+        if (headingMarks && headingText) {
             flushParagraph();
             flushList();
-            const level = Math.min(heading[1].length + 1, 4);
-            blocks.push(`<h${level}>${markdownInline(heading[2])}</h${level}>`);
-        } else if (item) {
+            const level = Math.min(headingMarks.length + 1, 4);
+            blocks.push(`<h${level}>${markdownInline(headingText)}</h${level}>`);
+        } else if (itemText !== undefined) {
             flushParagraph();
             const nextListTag = unorderedItem ? 'ul' : 'ol';
             if (listTag && listTag !== nextListTag) flushList();
             listTag = nextListTag;
-            listItems.push(item[1]);
+            listItems.push(itemText);
         } else if (!line.trim()) {
             flushParagraph();
             flushList();
