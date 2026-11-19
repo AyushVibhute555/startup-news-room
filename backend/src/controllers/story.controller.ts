@@ -11,8 +11,23 @@ import {
 import type { ListStoriesQuery } from '../validators/public.validators.js';
 
 export const listStories: RequestHandler = async (req, res) => {
-    const q = query<ListStoriesQuery>(req);
+    const parsed = query<ListStoriesQuery>(req);
+    const q = parsed.since && req.query.limit === undefined
+        ? { ...parsed, limit: 50 }
+        : parsed;
     const result = await listPublicStories(q);
+    if (q.since) {
+        res.json({
+            data: result.data.map((story) => ({
+                headline: story.title,
+                slug: story.slug,
+                companies: story.companies ?? [],
+                date: story.publishedAt,
+            })),
+            pagination: result.pagination,
+        });
+        return;
+    }
     res.json(result);
 };
 

@@ -10,6 +10,45 @@ beforeAll(async () => {
 });
 
 describe('public story visibility', () => {
+    it('preserves ampersands in new headlines and removes symbols from generated slugs', async () => {
+        const headline = await Story.create(
+            storyPayload({ title: 'Test & check', author: 'SNR Desk' }),
+        );
+        const financialHeadline = await Story.create(
+            storyPayload({ title: 'Test raises $5 million, up 20%' }),
+        );
+
+        expect(headline.title).toBe('Test & check');
+        expect(headline.slug).toBe('test-check');
+        expect(financialHeadline.slug).toBe('test-raises-5-million-up-20');
+
+        const response = await request(app).get(`/api/v1/stories/${headline.slug}`);
+        expect(response.body.data.title).toBe('Test & check');
+        expect(response.body.data.author).toBe('SNR Desk');
+    });
+
+    it('serves complete sitemap and RSS XML for published stories', async () => {
+        const publishedAt = new Date('2025-02-01T10:00:00.000Z');
+        const story = await Story.create(
+            storyPayload({
+                title: 'Startup Raises $5M & Expands Into Europe',
+                summary: 'A sufficiently long summary with & symbols for XML feed checks.',
+                publishedAt,
+            }),
+        );
+
+        const sitemap = await request(app).get('/api/v1/sitemap.xml');
+        expect(sitemap.headers['content-type']).toContain('application/xml');
+        expect(sitemap.text).toContain(`https://startupnewsroom.in/news/${story.slug}`);
+        expect(sitemap.text).toContain('<lastmod>');
+
+        const rss = await request(app).get('/api/v1/rss.xml');
+        expect(rss.headers['content-type']).toContain('application/rss+xml');
+        expect(rss.text).toContain('<title>Startup Raises $5M &amp; Expands Into Europe</title>');
+        expect(rss.text).toContain('<pubDate>Sat, 01 Feb 2025 10:00:00 GMT</pubDate>');
+        expect(rss.text).toContain(`https://startupnewsroom.in/news/${story.slug}`);
+    });
+
     it('formats legacy plain-text article content when serving it without changing stored data', async () => {
         const story = await Story.create(
             storyPayload({ title: 'Legacy Plain Text Story Formatting Check' }),
@@ -72,6 +111,58 @@ describe('public story visibility', () => {
         expect(res.status).toBe(200);
         expect(res.body.data.length).toBe(5);
         expect(res.body.pagination).toMatchObject({ page: 1, limit: 5, hasMore: true });
+    });
+
+    it('requires an automation key for date-based listings but keeps ordinary public listings public', async () => {
+        const publicList = await request(app).get('/api/v1/stories');
+        expect(publicList.status).toBe(200);
+
+        const unauthorized = await request(app).get('/api/v1/stories?since=2026-11-17');
+        expect(unauthorized.status).toBe(401);
+
+        const invalidDate = await request(app)
+            .get('/api/v1/stories?since=2026-02-30')
+            .set('X-API-Key', process.env.AUTOMATION_API_KEY!);
+        expect(invalidDate.status).toBe(400);
+    });
+
+    it('lists only public stories since the requested date with automation fields', async () => {
+        const today = new Date();
+        const todayString = today.toISOString().slice(0, 10);
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        await Story.create(storyPayload({
+            title: 'Recent Automation API Story Listing Test',
+            publishedAt: today,
+            companies: ['Acme'],
+            category: 'automation-date-test',
+            categories: ['automation-date-test'],
+        }));
+        await Story.create(storyPayload({
+            title: 'Old Automation API Story Listing Test',
+            publishedAt: yesterday,
+            category: 'automation-date-test',
+            categories: ['automation-date-test'],
+        }));
+        await Story.create(storyPayload({
+            title: 'Draft Automation API Story Listing Test',
+            publishedAt: today,
+            status: 'draft',
+            category: 'automation-date-test',
+            categories: ['automation-date-test'],
+        }));
+
+        const response = await request(app)
+            .get(`/api/v1/stories?category=automation-date-test&since=${todayString}`)
+            .set('X-API-Key', process.env.AUTOMATION_API_KEY!);
+        expect(response.status).toBe(200);
+        expect(response.body.data).toEqual([
+            expect.objectContaining({
+                headline: 'Recent Automation API Story Listing Test',
+                companies: ['Acme'],
+                date: today.toISOString(),
+            }),
+        ]);
+        expect(response.body.data[0]).toHaveProperty('slug');
     });
 
     it('filters by category', async () => {

@@ -1,4 +1,5 @@
 import type { FilterQuery, SortOrder } from 'mongoose';
+import { createHash } from 'node:crypto';
 import { Story, type StoryAttrs } from '../models/Story.js';
 import { Category } from '../models/Category.js';
 import { PUBLIC_STORY_PROJECTION } from '../utils/storyConstants.js';
@@ -43,10 +44,11 @@ export interface ListStoriesParams {
     page: number;
     limit: number;
     date?: string;
+    since?: string;
 }
 
 export async function listPublicStories(params: ListStoriesParams) {
-    const { category, region, q, page, limit, date } = params;
+    const { category, region, q, page, limit, date, since } = params;
     const filter: FilterQuery<StoryAttrs> = publicStoryFilter();
 
     if (category) {
@@ -61,6 +63,9 @@ export async function listPublicStories(params: ListStoriesParams) {
         const end = new Date(`${date}T23:59:59.999Z`);
         filter.publishedAt = { $gte: start, $lte: end };
     }
+    if (since) {
+        filter.publishedAt = { $gte: new Date(`${since}T00:00:00.000Z`), $lte: new Date() };
+    }
     if (q) filter.$text = { $search: q };
 
     const sort: Record<string, SortOrder | { $meta: string }> = q
@@ -68,9 +73,13 @@ export async function listPublicStories(params: ListStoriesParams) {
         : { publishedAt: -1, _id: -1 };
 
     const skip = (page - 1) * limit;
+    const projection: Record<string, 1 | { $meta: 'textScore' }> = {
+        ...publicProjection(Boolean(q)),
+    };
+    if (since) projection.companies = 1;
 
     const [docs, total] = await Promise.all([
-        Story.find(filter).select(publicProjection(Boolean(q))).sort(sort as never).skip(skip).limit(limit).lean(),
+        Story.find(filter).select(projection).sort(sort as never).skip(skip).limit(limit).lean(),
         Story.countDocuments(filter),
     ]);
 
@@ -269,15 +278,72 @@ export async function assertCategoryExists(slug: string): Promise<void> {
     }
 }
 
-export async function adminCreateStory(input: StoryInput, userId: string) {
+export async function adminCreateStory(
+    input: StoryInput,
+    userId?: string,
+    automationRequest?: { keyHash: string; requestHash: string },
+) {
     for (const cat of input.categories) {
         await assertCategoryExists(cat);
     }
 
     const data = Object.fromEntries(Object.entries(input).filter(([_, v]) => v !== undefined));
-    const story = new Story({ ...data, createdBy: userId });
+    const story = new Story({
+        ...data,
+        createdBy: userId ?? null,
+        ...(automationRequest && {
+            automationRequestKeyHash: automationRequest.keyHash,
+            automationRequestHash: automationRequest.requestHash,
+        }),
+    });
     await story.save();
     return story.toObject();
+}
+
+export async function automationCreateStory(
+    input: StoryInput,
+    idempotencyKey?: string,
+): Promise<{ story: Awaited<ReturnType<typeof adminCreateStory>>; replayed: boolean }> {
+    const keyHash = idempotencyKey
+        ? createHash('sha256').update(idempotencyKey).digest('hex')
+        : undefined;
+    const requestHash = idempotencyKey
+        ? createHash('sha256').update(JSON.stringify(input)).digest('hex')
+        : undefined;
+
+    const existing = keyHash
+        ? await Story.findOne({ automationRequestKeyHash: keyHash }).select('+automationRequestHash')
+        : null;
+    if (existing) {
+        if (existing.automationRequestHash !== requestHash) {
+            throw ApiError.conflict('Idempotency-Key was already used with a different story payload');
+        }
+        return { story: existing.toObject(), replayed: true };
+    }
+
+    try {
+        const story = await adminCreateStory(
+            input,
+            undefined,
+            keyHash && requestHash ? { keyHash, requestHash } : undefined,
+        );
+        return { story, replayed: false };
+    } catch (error) {
+        if (!keyHash || !isDuplicateKeyError(error)) throw error;
+
+        const concurrent = await Story.findOne({ automationRequestKeyHash: keyHash })
+            .select('+automationRequestHash');
+        if (!concurrent) throw error;
+        if (concurrent.automationRequestHash !== requestHash) {
+            throw ApiError.conflict('Idempotency-Key was already used with a different story payload');
+        }
+        return { story: concurrent.toObject(), replayed: true };
+    }
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && 'code' in error &&
+        (error as { code?: unknown }).code === 11000;
 }
 
 export async function adminUpdateStory(id: string, input: Partial<StoryInput>) {

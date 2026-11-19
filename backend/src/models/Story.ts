@@ -55,6 +55,8 @@ const storySchema = new Schema(
         isBreaking: { type: Boolean, default: false },
         createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
         newsSubmissionId: { type: Schema.Types.ObjectId, ref: 'NewsSubmission', immutable: true },
+        automationRequestKeyHash: { type: String, select: false },
+        automationRequestHash: { type: String, select: false },
     },
     {
         timestamps: true,
@@ -62,6 +64,15 @@ const storySchema = new Schema(
             versionKey: false,
             transform: (_doc, ret: Record<string, unknown>) => {
                 delete ret.__v;
+                delete ret.automationRequestKeyHash;
+                delete ret.automationRequestHash;
+                return ret;
+            },
+        },
+        toObject: {
+            transform: (_doc, ret: Record<string, unknown>) => {
+                delete ret.automationRequestKeyHash;
+                delete ret.automationRequestHash;
                 return ret;
             },
         },
@@ -75,6 +86,7 @@ storySchema.index({ category: 1, status: 1, publishedAt: -1 });
 storySchema.index({ isFeatured: 1 });
 storySchema.index({ isBreaking: 1, publishedAt: -1 });
 storySchema.index({ newsSubmissionId: 1 }, { unique: true, sparse: true });
+storySchema.index({ automationRequestKeyHash: 1 }, { unique: true, sparse: true });
 storySchema.index(
     { title: 'text', tags: 'text', summary: 'text', companies: 'text' },
     { weights: { title: 10, companies: 8, tags: 5, summary: 2 }, name: 'story_text' },
@@ -101,7 +113,7 @@ storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) 
     this.readTime = Math.max(1, Math.ceil(words / 200));
 
     if (this.isNew && !this.slug) {
-        const titleWithoutSymbols = (this.title || 'story').replace(/[\p{Sc}%]/gu, '');
+        const titleWithoutSymbols = (this.title || 'story').replace(/[\p{S}%&]/gu, '');
         const base = slugify(titleWithoutSymbols, { lower: true, strict: true, trim: true }) || 'story';
         let candidate = base;
         for (let i = 0; i < 10; i += 1) {

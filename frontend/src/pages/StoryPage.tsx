@@ -21,6 +21,7 @@ import { trackEvent } from "@/lib/analytics";
 import type { Story } from "@/types/story";
 import { TranslatedHighlightedText } from "@/components/TranslatedHighlightedText";
 import { getCategoryLabel } from "@/i18n/categoryLabel";
+import { SITE_URL } from "@/lib/site";
 
 const shareBtn =
   "inline-flex h-11 w-11 items-center justify-center rounded-[4px] border border-border transition-colors duration-200 hover:border-foreground hover:text-signal";
@@ -87,10 +88,14 @@ export function StoryPage({ story }: { story: Story }) {
   const { t } = useTranslation();
   const related = useApi(() => getRelatedStories(story.slug), [story.slug]);
 
+  useEffect(() => {
+    document.title = `${story.title} | Startup News Room`;
+  }, [story.title]);
+
   // 👇 SAFE CATEGORY FALLBACK 👇
   const primaryCategory = (story as any).categories?.[0] || (story as any).category || "news";
 
-  const pageUrl = `https://startup-news-room.vercel.app/news/${story.slug}`;
+  const pageUrl = `${SITE_URL}/news/${story.slug}`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -98,11 +103,11 @@ export function StoryPage({ story }: { story: Story }) {
     image: [story.imageUrl],
     datePublished: story.publishedAt,
     dateModified: story.publishedAt,
-    author: [{ "@type": "Organization", name: story.sourceName || "Startup News Room" }],
+    author: [{ "@type": "Organization", name: story.author || "SNR Desk" }],
     publisher: {
       "@type": "Organization",
       name: "Startup News Room",
-      logo: { "@type": "ImageObject", url: "https://startup-news-room.vercel.app/logo.jpg" },
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.jpg` },
     },
     description: story.summary,
   };
@@ -161,12 +166,8 @@ export function StoryPage({ story }: { story: Story }) {
             </Reveal>
             <div className="mt-8 flex flex-col gap-4 border-y border-border py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-muted-foreground">
-                {story.sourceName && (
-                  <>
-                    <span className="font-semibold text-foreground">{story.sourceName}</span>
-                    <span aria-hidden>·</span>
-                  </>
-                )}
+                <span className="font-semibold text-foreground">{story.author || "SNR Desk"}</span>
+                <span aria-hidden>·</span>
                 <time dateTime={story.publishedAt} suppressHydrationWarning>
                   {formatDate(story.publishedAt)}
                 </time>

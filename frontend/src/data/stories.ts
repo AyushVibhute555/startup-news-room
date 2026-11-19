@@ -66,7 +66,7 @@ const seeds: Seed[] = [
   [
     "Venture funding for early-stage startups rose 12% last quarter",
     "Seed and Series A deals led the recovery while late-stage activity stayed flat. Climate and AI infrastructure accounted for a third of all dollars.",
-    "markets",
+    "ipo-markets",
     "Market Pulse",
     "photo-1611974789855-9c2a0a7236a3",
     6,
@@ -166,7 +166,7 @@ const seeds: Seed[] = [
   [
     "Cobalt Analytics files confidentially for public listing",
     "The data infrastructure company is targeting a listing early next year. It would be among the first venture-backed IPOs of the cycle.",
-    "markets",
+    "ipo-markets",
     "Market Pulse",
     "photo-1590283603385-17ffb3a7f29f",
     46,
@@ -220,7 +220,7 @@ const seeds: Seed[] = [
   [
     "Startup layoffs slowed to their lowest level in three years",
     "Tracking data shows fewer and smaller cuts across sectors. Hiring for engineering roles has started to recover.",
-    "markets",
+    "ipo-markets",
     "Market Pulse",
     "photo-1522071820081-009f0129c71c",
     100,

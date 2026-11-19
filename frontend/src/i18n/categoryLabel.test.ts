@@ -9,7 +9,7 @@ describe("formatCategorySlug", () => {
 
   it("uses localized labels when present and readable fallbacks for new categories", () => {
     expect(getCategoryLabel("funding", i18n.t)).toBe("Funding");
-    expect(getCategoryLabel("ipo-markets", i18n.t)).toBe("IPO Markets");
-    expect(getCategoryLabel("ipo-markets", i18n.t, "ipo-markets")).toBe("IPO Markets");
+    expect(getCategoryLabel("ipo-markets", i18n.t)).toBe("IPOs & Markets");
+    expect(getCategoryLabel("ipo-markets", i18n.t, "ipo-markets")).toBe("IPOs & Markets");
   });
 });

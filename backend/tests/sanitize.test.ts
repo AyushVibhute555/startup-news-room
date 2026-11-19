@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeContent } from '../src/utils/sanitize.js';
+import { sanitizeContent, stripHtml } from '../src/utils/sanitize.js';
+
+describe('plain text sanitization', () => {
+    it('preserves ampersands as plain text while removing HTML markup', () => {
+        expect(stripHtml('Test & check')).toBe('Test & check');
+        expect(stripHtml('Test <strong>&amp;</strong> check')).toBe('Test & check');
+    });
+});
 
 describe('story content formatting', () => {
     it('turns plain-text Markdown into spaced paragraphs, headings and lists', () => {

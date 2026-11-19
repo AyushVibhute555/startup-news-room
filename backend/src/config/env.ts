@@ -15,6 +15,10 @@ const envSchema = z.object({
   ADMIN_NAME: z.string().min(1),
   ADMIN_EMAIL: z.string().email(),
   ADMIN_PASSWORD: z.string().min(10, 'ADMIN_PASSWORD must be at least 10 characters'),
+  AUTOMATION_API_KEY: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(32, 'AUTOMATION_API_KEY must be at least 32 characters').optional(),
+  ),
   TRUST_PROXY: z.string().optional(),
 });
 

@@ -32,8 +32,8 @@ export const categories: Category[] = [
     description: "The people behind the companies, and how they build.",
   },
   {
-    slug: "markets",
-    name: "Markets",
+    slug: "ipo-markets",
+    name: "IPOs & Markets",
     description: "Valuations, exits, IPOs and the state of venture.",
   },
   {

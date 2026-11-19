@@ -9,6 +9,12 @@ export const listStoriesQuerySchema = z
         page: pageQuery,
         limit: limitQuery(50, 9),
         date: isoDate.optional(),
+        since: isoDate
+            .refine((value) => {
+                const date = new Date(`${value}T00:00:00.000Z`);
+                return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+            }, 'Expected a valid calendar date')
+            .optional(),
     })
     .strict();
 

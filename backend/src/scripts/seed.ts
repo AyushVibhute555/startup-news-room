@@ -218,7 +218,7 @@ const SEED_STORIES: SeedStory[] = [
             'A fictional analyst note argues that late-stage capital is shifting away from consumer apps toward infrastructure.',
         content:
             'A fictional analyst note from Tidewater Markets tracks deal volume across late-stage rounds.\n\nInfrastructure startups accounted for the largest share of new capital commitments last quarter.',
-        category: 'markets',
+        category: 'ipo-markets',
         tags: ['analysis', 'infrastructure', 'capital'],
         sourceName: 'Example Wire',
         sourceUrl: 'https://example.com/news/tidewater-rotation',
@@ -316,7 +316,7 @@ const SEED_STORIES: SeedStory[] = [
             'A fictional market report notes that seed valuations held steady while Series A multiples compressed.',
         content:
             'A fictional market report from a made-up research firm examined valuation trends across stages.\n\nSeries A multiples compressed for the third consecutive quarter.',
-        category: 'markets',
+        category: 'ipo-markets',
         tags: ['valuations', 'seed', 'series-a'],
         sourceName: 'Example Wire',
         sourceUrl: 'https://example.com/news/valuation-gap-report',

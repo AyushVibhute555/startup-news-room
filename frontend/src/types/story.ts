@@ -1,5 +1,5 @@
 export type CategorySlug =
-  "funding" | "launches" | "ai" | "fintech" | "saas" | "founders" | "markets" | "policy";
+  "funding" | "launches" | "ai" | "fintech" | "saas" | "founders" | "ipo-markets" | "policy";
 
 export type Region = "Karnataka" | "India" | "Global";
 

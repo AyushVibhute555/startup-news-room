@@ -17,6 +17,7 @@ process.env.CLOUDINARY_API_SECRET = 'test';
 process.env.ADMIN_NAME = 'Test Admin';
 process.env.ADMIN_EMAIL = 'admin@example.com';
 process.env.ADMIN_PASSWORD = 'TestPassword123';
+process.env.AUTOMATION_API_KEY = 'test-automation-api-key-with-at-least-32-chars';
 
 let mongod: MongoMemoryServer;
 

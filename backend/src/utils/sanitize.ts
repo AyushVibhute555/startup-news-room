@@ -1,8 +1,14 @@
 import sanitizeHtml from 'sanitize-html';
+import * as cheerio from 'cheerio';
 
 /** Strips ALL HTML tags and returns plain text (Used for Titles, Summaries, Tags). */
 export function stripHtml(input: string): string {
-    return sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} })
+    return cheerio.load(
+        sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }),
+        null,
+        false,
+    )
+        .text()
         .replace(/\s+/g, ' ')
         .trim();
 }

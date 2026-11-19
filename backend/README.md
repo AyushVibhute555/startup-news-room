@@ -39,6 +39,7 @@ COOKIE_SAMESITE	no	lax (default) or none (cross-site, requires HTTPS)
 CLOUDINARY_CLOUD_NAME	yes	Cloudinary cloud name
 CLOUDINARY_API_KEY	yes	Cloudinary API key
 CLOUDINARY_API_SECRET	yes	Cloudinary API secret
+AUTOMATION_API_KEY	production automation only	At least 32 random characters; keep it in Render environment variables and a private secret manager
 ADMIN_NAME	yes	Seed admin display name
 ADMIN_EMAIL	yes	Seed admin email
 ADMIN_PASSWORD	yes	Seed admin password (min 10 chars)
@@ -56,7 +57,7 @@ npm run typecheck   # tsc --noEmit
 Public (no auth)
 Method	Path	Description
 GET	/api/v1/health	Service status + DB connection state
-GET	/api/v1/stories	List public stories (category, q, page, limit, date)
+GET	/api/v1/stories	List public stories (category, q, page, limit, date); adding `since=YYYY-MM-DD` requires the automation API key and returns headline, slug, companies and date
 GET	/api/v1/stories/featured	Latest featured story (falls back to newest)
 GET	/api/v1/stories/top	5 newest stories excluding the featured one
 GET	/api/v1/stories/breaking	Latest 8 breaking stories
@@ -149,3 +150,45 @@ Link preview SSRF guard: protocol allowlist, DNS resolution with private/loopbac
 Storage abstraction: StorageService interface in services/storage.service.ts so Cloudinary can be swapped out later.
 
 Community news is stored in the separate NewsSubmission collection with a pending status. Public submissions are rate limited, accept exactly one JPEG, PNG or WebP image up to 5 MB, and validate the actual image signature before uploading. Only admins can review, edit, publish or reject a submission; publishing creates a public Story and links it to the submission to make retries safe.
+
+Automation publishing
+---------------------
+Set `AUTOMATION_API_KEY` in the Render service's environment settings before using these endpoints. The API fails closed with `503` until configured; once configured, a missing or incorrect `X-API-Key` returns `401`. Generate a 256-bit key locally with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Store it only in Render and a private secret manager. Do not commit it or share it in chat/groups. Share it with the automation owner through an approved private secret-sharing channel. Rotate it by updating Render and the automation client together.
+
+`POST /api/v1/stories` accepts `headline`, `summary`, `content`, `imageUrl`, `category`, and the optional admin story fields (`author`, image credit, tags, companies, region/city, funding details, homepage slot, featured/breaking flags and expiry, publication date, and status). Category existence, required article content, image URL, and all field limits are validated like admin story creation. A draft is created when `status` is omitted. The response includes the story ID, slug, and full `https://startupnewsroom.in/news/<slug>` URL.
+
+`POST /api/v1/media` accepts one multipart image field named `image`, limited to 5 MB and JPEG, PNG, or WebP content, and uploads through the same Cloudinary storage service as admin uploads. Its response includes the Cloudinary `url`.
+
+`GET /api/v1/stories?since=YYYY-MM-DD` returns only published stories with `publishedAt` on or after the UTC date and not in the future. It requires `X-API-Key`; ordinary public story-list requests remain public and unchanged. Results are paginated (50 by default, up to 50 per request).
+
+All three automation operations are rate limited. For safe retries after a timeout, `POST /stories` accepts an optional `Idempotency-Key` (8–128 characters). Repeating the same key and payload returns the original story; reusing the key with a different payload returns `409`.
+
+Examples (keep the key in an environment variable, not in the command history):
+
+```bash
+curl -H "X-API-Key: $AUTOMATION_API_KEY" \
+  "https://startup-news-room-api.onrender.com/api/v1/stories?since=2026-11-17"
+
+curl -X POST "https://startup-news-room-api.onrender.com/api/v1/media" \
+  -H "X-API-Key: $AUTOMATION_API_KEY" \
+  -F "image=@./story-image.webp"
+
+curl -X POST "https://startup-news-room-api.onrender.com/api/v1/stories" \
+  -H "X-API-Key: $AUTOMATION_API_KEY" \
+  -H "Idempotency-Key: daily-story-2026-11-20" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "headline": "Acme Launches a New AI Platform for Startups",
+    "summary": "A sufficiently detailed subheading describing the product launch and its intended audience.",
+    "content": "The complete article text goes here.",
+    "imageUrl": "https://res.cloudinary.com/example/image/upload/story.webp",
+    "category": "ai",
+    "status": "draft"
+  }'
+```

@@ -13,6 +13,7 @@ import { dayLabel, formatClock } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
 import { categories } from "@/data/categories";
 import type { Category, Story } from "@/types/story";
+import { getCategoryLabel } from "@/i18n/categoryLabel";
 
 // 👇 Bulletproof StoryGrid that prevents React crashes
 function StoryGrid({ stories }: { stories: Story[] }) {
@@ -95,7 +96,7 @@ function CategoryPageInner({ category }: { category: Category }) {
   }, [category.slug, page, tick]);
 
   // Safe category label fallback
-  const categoryName = category.name || category.slug || "Category";
+  const categoryName = getCategoryLabel(category.slug, t, category.name);
 
   return (
     <Container className="section-y !pt-12">

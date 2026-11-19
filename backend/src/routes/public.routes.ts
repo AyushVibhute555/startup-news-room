@@ -32,6 +32,13 @@ import { upload } from '../controllers/admin.upload.controller.js';
 import { getSitemap, getRss } from '../controllers/seo.controller.js';
 import { translateHandler } from '../controllers/translate.controller.js';
 import { z } from 'zod';
+import { requireAutomationKeyForSince } from '../middleware/automationAuth.js';
+import { automationLimiter } from '../middleware/rateLimits.js';
+
+const limitSinceRequests: import('express').RequestHandler = (req, res, next) => {
+    if (req.query.since === undefined) return next();
+    return automationLimiter(req, res, next);
+};
 
 const router = Router();
 
@@ -56,7 +63,13 @@ router.get('/rss.xml', getRss);
 router.get('/stories/featured', listFeatured);
 router.get('/stories/top', listTop);
 router.get('/stories/breaking', listBreaking);
-router.get('/stories', validate({ query: listStoriesQuerySchema }), listStories);
+router.get(
+    '/stories',
+    limitSinceRequests,
+    requireAutomationKeyForSince,
+    validate({ query: listStoriesQuerySchema }),
+    listStories,
+);
 router.get('/stories/:slug/related', validate({ params: slugParamSchema }), getRelated);
 router.get('/stories/:slug', validate({ params: slugParamSchema }), getStory);
 

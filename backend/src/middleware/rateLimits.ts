@@ -64,3 +64,12 @@ export const linkPreviewLimiter = rateLimit({
     keyGenerator: (req) => req.auth?.id ?? req.ip ?? 'anonymous',
     message: { error: { code: 'RATE_LIMITED', message: 'Too many preview requests.' } },
 });
+
+export const automationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 30,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    skip,
+    message: { error: { code: 'RATE_LIMITED', message: 'Too many automation requests. Try again later.' } },
+});

@@ -1,0 +1,108 @@
+import { describe, expect, it } from 'vitest';
+import request from 'supertest';
+import { app } from '../src/app.js';
+import { Story } from '../src/models/Story.js';
+import { ensureCategory } from './helpers.js';
+
+const apiKey = process.env.AUTOMATION_API_KEY!;
+
+const automationStory = {
+    headline: 'Automation API Creates A Fully Valid Story',
+    summary: 'A sufficiently long subheading for the automation API test story body.',
+    content: 'The full news article content is required and supplied by the automation.',
+    imageUrl: 'https://images.example.com/automation.jpg',
+    imageCredit: 'Company press kit',
+    author: 'SNR Desk',
+    category: 'ai',
+    tags: ['automation'],
+    companies: ['Acme'],
+    region: 'India',
+    city: 'Bengaluru',
+    fundingDetails: { amountINR: '₹10 crore', round: 'Seed', investors: ['Example Fund'] },
+    homepageSlot: 'none',
+    isFeatured: false,
+    isBreaking: false,
+    status: 'draft',
+};
+
+describe('automation publishing API', () => {
+    it('requires a valid key for story creation and media upload', async () => {
+        const missingKey = await request(app).post('/api/v1/stories').send(automationStory);
+        expect(missingKey.status).toBe(401);
+
+        const wrongKey = await request(app)
+            .post('/api/v1/stories')
+            .set('X-API-Key', 'incorrect-automation-api-key')
+            .send(automationStory);
+        expect(wrongKey.status).toBe(401);
+
+        const unauthorizedMedia = await request(app)
+            .post('/api/v1/media')
+            .attach('image', Buffer.from('not an image'), 'image.png');
+        expect(unauthorizedMedia.status).toBe(401);
+    });
+
+    it('creates a draft and safely replays an idempotent request', async () => {
+        await ensureCategory('ai', 'AI', 1);
+        const key = 'daily-automation-story-2026-11-19';
+
+        const created = await request(app)
+            .post('/api/v1/stories')
+            .set('X-API-Key', apiKey)
+            .set('Idempotency-Key', key)
+            .send(automationStory);
+        expect(created.status).toBe(201);
+        expect(created.body.data).toMatchObject({
+            slug: 'automation-api-creates-a-fully-valid-story',
+            url: 'https://startupnewsroom.in/news/automation-api-creates-a-fully-valid-story',
+        });
+        expect(created.body.data.id).toBeTruthy();
+
+        const story = await Story.findById(created.body.data.id);
+        expect(story?.status).toBe('draft');
+        expect(story?.createdBy).toBeNull();
+
+        const replay = await request(app)
+            .post('/api/v1/stories')
+            .set('X-API-Key', apiKey)
+            .set('Idempotency-Key', key)
+            .send(automationStory);
+        expect(replay.status).toBe(200);
+        expect(replay.headers['idempotency-replayed']).toBe('true');
+        expect(replay.body.data.id).toBe(created.body.data.id);
+        expect(await Story.countDocuments({ title: automationStory.headline })).toBe(1);
+    });
+
+    it('rejects invalid story fields and idempotency key reuse with a different payload', async () => {
+        const invalid = await request(app)
+            .post('/api/v1/stories')
+            .set('X-API-Key', apiKey)
+            .send({ ...automationStory, content: '  ' });
+        expect(invalid.status).toBe(400);
+
+        await ensureCategory('ai', 'AI', 1);
+        const idempotencyKey = 'same-key-different-payload';
+        await request(app)
+            .post('/api/v1/stories')
+            .set('X-API-Key', apiKey)
+            .set('Idempotency-Key', idempotencyKey)
+            .send(automationStory)
+            .expect(201);
+
+        const conflict = await request(app)
+            .post('/api/v1/stories')
+            .set('X-API-Key', apiKey)
+            .set('Idempotency-Key', idempotencyKey)
+            .send({ ...automationStory, summary: 'A different sufficiently long subheading for the idempotency check.' });
+        expect(conflict.status).toBe(409);
+    });
+
+    it('validates uploaded image content before sending it to Cloudinary', async () => {
+        const response = await request(app)
+            .post('/api/v1/media')
+            .set('X-API-Key', apiKey)
+            .attach('image', Buffer.from('not an image'), 'image.png');
+        expect(response.status).toBe(400);
+        expect(response.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+    });
+});

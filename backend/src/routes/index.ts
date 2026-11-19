@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import publicRoutes from './public.routes.js';
 import authRoutes from './auth.routes.js';
 import adminRoutes from './admin.routes.js';
+import automationRoutes from './automation.routes.js';
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.get('/health', (_req, res) => {
 
 router.use('/auth', authRoutes);
 router.use('/admin', adminRoutes);
+router.use('/', automationRoutes);
 router.use('/', publicRoutes);
 
 export default router;

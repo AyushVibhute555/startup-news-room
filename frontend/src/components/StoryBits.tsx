@@ -6,6 +6,17 @@ import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
 import type { Story } from "@/types/story";
 import { getCategoryLabel } from "@/i18n/categoryLabel";
+import { SITE_URL } from "@/lib/site";
+
+function isInternalSourceUrl(sourceUrl: string): boolean {
+  try {
+    const sourceHost = new URL(sourceUrl).hostname.toLowerCase();
+    const siteHost = new URL(SITE_URL).hostname.toLowerCase();
+    return sourceHost === siteHost || sourceHost.endsWith(`.${siteHost}`);
+  } catch {
+    return false;
+  }
+}
 
 export function CategoryTag({
   slug,
@@ -67,7 +78,7 @@ export function StoryMeta({
         className,
       )}
     >
-      {story.sourceName && <span className="font-medium text-foreground">{story.sourceName}</span>}
+      <span className="font-medium text-foreground">{story.author || "SNR Desk"}</span>
       <time dateTime={story.publishedAt} suppressHydrationWarning>
         {timeLabel}
       </time>
@@ -78,7 +89,7 @@ export function StoryMeta({
 
 export function SourceLink({ story, className }: { story: Story; className?: string }) {
   const { t } = useTranslation();
-  if (!story.sourceUrl) return null;
+  if (!story.sourceUrl || isInternalSourceUrl(story.sourceUrl)) return null;
   return (
     <a
       href={story.sourceUrl}

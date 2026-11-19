@@ -1,6 +1,18 @@
 {
     "rewrites": [
         {
+            "source": "/news/:slug",
+            "destination": "/api/story-meta?slug=:slug"
+        },
+        {
+            "source": "/sitemap.xml",
+            "destination": "https://startup-news-room-api.onrender.com/api/v1/sitemap.xml"
+        },
+        {
+            "source": "/rss.xml",
+            "destination": "https://startup-news-room-api.onrender.com/api/v1/rss.xml"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }

@@ -1,6 +1,7 @@
 export const PUBLIC_STORY_PROJECTION = {
     _id: 1,
     title: 1,
+    author: 1,
     slug: 1,
     summary: 1,
     content: 1,
@@ -25,6 +26,6 @@ export const SEED_CATEGORIES = [
     { name: 'Fintech', slug: 'fintech', order: 4, description: 'Payments, banking and financial infrastructure.' },
     { name: 'SaaS', slug: 'saas', order: 5, description: 'Software as a service and B2B tooling.' },
     { name: 'Founders', slug: 'founders', order: 6, description: 'People building companies.' },
-    { name: 'Markets', slug: 'markets', order: 7, description: 'Market trends and analysis.' },
+    { name: 'IPOs & Markets', slug: 'ipo-markets', order: 7, description: 'Public listings, market trends and analysis.' },
     { name: 'Policy', slug: 'policy', order: 8, description: 'Regulation and public policy.' },
 ];

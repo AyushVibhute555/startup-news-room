@@ -47,6 +47,19 @@ export const createStorySchema = z
     })
     .strict();
 
+export const automationCreateStorySchema = createStorySchema
+    .omit({ title: true, categories: true })
+    .extend({
+        headline: createStorySchema.shape.title,
+        category: z.string().trim().toLowerCase().min(1).max(80),
+    })
+    .strict()
+    .transform(({ headline, category, ...fields }) => ({
+        ...fields,
+        title: headline,
+        categories: [category],
+    }));
+
 export const updateStorySchema = createStorySchema.partial().strict();
 
 export const adminListStoriesQuerySchema = z
@@ -101,5 +114,6 @@ export const markMessageSchema = z.object({ status: z.enum(['new', 'read']).defa
 export const subscribersQuerySchema = z.object({ status: z.enum(['active', 'unsubscribed']).optional(), page: pageQuery, limit: limitQuery(100, 20), format: z.enum(['json', 'csv']).optional() }).strict();
 
 export type CreateStoryInput = z.infer<typeof createStorySchema>;
+export type AutomationCreateStoryInput = z.infer<typeof automationCreateStorySchema>;
 export type UpdateStoryInput = z.infer<typeof updateStorySchema>;
 export type PublishNewsSubmissionInput = z.infer<typeof publishNewsSubmissionSchema>;
