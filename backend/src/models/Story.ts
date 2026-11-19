@@ -42,6 +42,7 @@ const storySchema = new Schema(
         sponsorName: { type: String, default: '', trim: true },
         homepageSlot: { type: String, enum: ['lead', 'top', 'none'], default: 'none' },
         breakingExpiresAt: { type: Date, default: null },
+        breakingStartedAt: { type: Date, default: null },
 
         tags: {
             type: [String],
@@ -112,6 +113,23 @@ storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) 
     const words = text.split(/\s+/).filter(Boolean).length;
     this.readTime = Math.max(1, Math.ceil(words / 200));
 
+    if (!this.isBreaking) {
+        this.breakingStartedAt = null;
+        this.breakingExpiresAt = null;
+    } else if (this.isNew || this.isModified('isBreaking')) {
+        const now = new Date();
+        this.breakingStartedAt = now;
+        const automaticExpiry = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const customExpiry = this.isModified('breakingExpiresAt') && this.breakingExpiresAt;
+        this.breakingExpiresAt = customExpiry && customExpiry < automaticExpiry
+            ? customExpiry
+            : automaticExpiry;
+    } else if (!this.breakingStartedAt && !this.breakingExpiresAt) {
+        const startedAt = this.updatedAt ?? this.publishedAt ?? new Date();
+        this.breakingStartedAt = startedAt;
+        this.breakingExpiresAt = new Date(startedAt.getTime() + 24 * 60 * 60 * 1000);
+    }
+
     if (this.isNew && !this.slug) {
         const titleWithoutSymbols = (this.title || 'story').replace(/[\p{S}%&]/gu, '');
         const base = slugify(titleWithoutSymbols, { lower: true, strict: true, trim: true }) || 'story';
@@ -126,6 +144,12 @@ storySchema.pre('validate', async function (this: HydratedDocument<StoryAttrs>) 
 });
 
 storySchema.pre('save', async function (this: HydratedDocument<StoryAttrs>) {
+    if (this.homepageSlot === 'lead') {
+        await mongoose.model('Story').updateMany(
+            { _id: { $ne: this._id }, homepageSlot: 'lead' },
+            { $set: { homepageSlot: 'none' } },
+        );
+    }
     if (this.isFeatured) {
         await mongoose.model('Story').updateMany(
             { _id: { $ne: this._id }, isFeatured: true },

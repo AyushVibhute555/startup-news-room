@@ -163,11 +163,13 @@ Store it only in Render and a private secret manager. Do not commit it or share 
 
 `POST /api/v1/stories` accepts `headline`, `summary`, `content`, `imageUrl`, `category`, and the optional admin story fields (`author`, image credit, tags, companies, region/city, funding details, homepage slot, featured/breaking flags and expiry, publication date, and status). Category existence, required article content, image URL, and all field limits are validated like admin story creation. A draft is created when `status` is omitted. The response includes the story ID, slug, and full `https://startupnewsroom.in/news/<slug>` URL.
 
+`PATCH /api/v1/stories/<id>` accepts any non-empty subset of the same story fields to correct a story or change its placement. Use `headline` to correct its title and `category` to change its category. The story ID is the `id` returned by story creation. The slug stays stable when the headline changes, so existing links continue to work. Set `homepageSlot` to `lead` to make the story the homepage hero; any previous lead story is automatically moved to `none`. Set `isBreaking` to `false` to remove its breaking label immediately. Breaking labels automatically expire within 24 hours of being set (an earlier `breakingExpiresAt` is honored). Updates return the existing story URL and its current status/placement.
+
 `POST /api/v1/media` accepts one multipart image field named `image`, limited to 5 MB and JPEG, PNG, or WebP content, and uploads through the same Cloudinary storage service as admin uploads. Its response includes the Cloudinary `url`.
 
 `GET /api/v1/stories?since=YYYY-MM-DD` returns only published stories with `publishedAt` on or after the UTC date and not in the future. It requires `X-API-Key`; ordinary public story-list requests remain public and unchanged. Results are paginated (50 by default, up to 50 per request).
 
-All three automation operations are rate limited. For safe retries after a timeout, `POST /stories` accepts an optional `Idempotency-Key` (8–128 characters). Repeating the same key and payload returns the original story; reusing the key with a different payload returns `409`.
+All automation operations are rate limited. For safe retries after a timeout, `POST /stories` accepts an optional `Idempotency-Key` (8–128 characters). Repeating the same key and payload returns the original story; reusing the key with a different payload returns `409`.
 
 Examples (keep the key in an environment variable, not in the command history):
 

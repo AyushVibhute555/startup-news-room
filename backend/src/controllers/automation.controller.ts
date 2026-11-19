@@ -1,8 +1,11 @@
 import type { RequestHandler } from 'express';
-import { body } from '../middleware/validate.js';
-import { automationCreateStory } from '../services/story.service.js';
+import { body, params } from '../middleware/validate.js';
+import { adminUpdateStory, automationCreateStory } from '../services/story.service.js';
 import { ApiError } from '../utils/ApiError.js';
-import type { AutomationCreateStoryInput } from '../validators/admin.validators.js';
+import type {
+    AutomationCreateStoryInput,
+    AutomationUpdateStoryInput,
+} from '../validators/admin.validators.js';
 
 const SITE_URL = 'https://startupnewsroom.in';
 
@@ -23,6 +26,24 @@ export const createAutomationStory: RequestHandler = async (req, res) => {
             id: String(story._id),
             slug: story.slug,
             url: `${SITE_URL}/news/${story.slug}`,
+        },
+    });
+};
+
+export const updateAutomationStory: RequestHandler = async (req, res) => {
+    const { id } = params<{ id: string }>(req);
+    const input = body<AutomationUpdateStoryInput>(req);
+    const story = await adminUpdateStory(id, input);
+    res.json({
+        data: {
+            id: String(story._id),
+            slug: story.slug,
+            url: `${SITE_URL}/news/${story.slug}`,
+            headline: story.title,
+            status: story.status,
+            homepageSlot: story.homepageSlot,
+            isBreaking: story.isBreaking,
+            breakingExpiresAt: story.breakingExpiresAt,
         },
     });
 };

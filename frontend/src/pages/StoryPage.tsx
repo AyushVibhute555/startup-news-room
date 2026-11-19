@@ -179,8 +179,8 @@ export function StoryPage({ story }: { story: Story }) {
           </div>
 
           {story.keyFacts && story.keyFacts.length > 0 && (
-            <section aria-labelledby="key-facts-heading" className="mx-auto mt-8 max-w-[880px] rounded border border-border bg-surface-alt p-5 sm:p-7">
-              <h2 id="key-facts-heading" className="font-label text-xl">{t("story.keyFacts")}</h2>
+            <section aria-labelledby="key-facts-heading" className="mx-auto mt-8 max-w-[880px] rounded-r-lg border border-border border-l-4 border-l-signal bg-surface-alt p-5 sm:p-7">
+              <h2 id="key-facts-heading" className="font-label text-xl">{t("story.atAGlance")}</h2>
               <dl className="mt-4 grid gap-4 sm:grid-cols-2">
                 {story.keyFacts.map((fact, index) => (
                   <div key={`${fact.label}-${index}`} className="border-t border-border pt-3">

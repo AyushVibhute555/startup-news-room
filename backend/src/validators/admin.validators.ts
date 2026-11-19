@@ -60,6 +60,21 @@ export const automationCreateStorySchema = createStorySchema
         categories: [category],
     }));
 
+export const automationUpdateStorySchema = createStorySchema
+    .omit({ title: true, categories: true })
+    .partial()
+    .extend({
+        headline: createStorySchema.shape.title.optional(),
+        category: z.string().trim().toLowerCase().min(1).max(80).optional(),
+    })
+    .strict()
+    .refine((fields) => Object.keys(fields).length > 0, 'At least one story field is required')
+    .transform(({ headline, category, ...fields }) => ({
+        ...fields,
+        ...(headline === undefined ? {} : { title: headline }),
+        ...(category === undefined ? {} : { categories: [category] }),
+    }));
+
 export const updateStorySchema = createStorySchema.partial().strict();
 
 export const adminListStoriesQuerySchema = z
@@ -115,5 +130,6 @@ export const subscribersQuerySchema = z.object({ status: z.enum(['active', 'unsu
 
 export type CreateStoryInput = z.infer<typeof createStorySchema>;
 export type AutomationCreateStoryInput = z.infer<typeof automationCreateStorySchema>;
+export type AutomationUpdateStoryInput = z.infer<typeof automationUpdateStorySchema>;
 export type UpdateStoryInput = z.infer<typeof updateStorySchema>;
 export type PublishNewsSubmissionInput = z.infer<typeof publishNewsSubmissionSchema>;

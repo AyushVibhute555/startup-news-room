@@ -286,4 +286,82 @@ describe('slug behaviour', () => {
         expect(featured).toHaveLength(1);
         expect(String(featured[0]!._id)).toBe(String(b._id));
     });
+
+    it('moves the hero slot from the previous story to the newly selected story', async () => {
+        const previous = await Story.create(
+            storyPayload({
+                title: 'Previous Homepage Hero Story Test',
+                homepageSlot: 'lead',
+            }),
+        );
+        const next = await Story.create(
+            storyPayload({
+                title: 'New Homepage Hero Story Test',
+                homepageSlot: 'lead',
+            }),
+        );
+
+        expect((await Story.findById(previous._id))?.homepageSlot).toBe('none');
+        expect((await Story.find({ homepageSlot: 'lead' }))).toHaveLength(1);
+        expect(String((await Story.findOne({ homepageSlot: 'lead' }))?._id)).toBe(String(next._id));
+    });
+
+    it('expires breaking status after 24 hours and honors an earlier explicit expiry', async () => {
+        const fresh = await Story.create(
+            storyPayload({
+                title: 'New Breaking Story Automatically Expires Test',
+                isBreaking: true,
+            }),
+        );
+        expect(fresh.breakingStartedAt).toBeInstanceOf(Date);
+        expect(fresh.breakingExpiresAt!.getTime() - fresh.breakingStartedAt!.getTime())
+            .toBe(24 * 60 * 60 * 1000);
+
+        const capped = await Story.create(
+            storyPayload({
+                title: 'Breaking Story With A Longer Custom Expiry Test',
+                isBreaking: true,
+                breakingExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            }),
+        );
+        expect(capped.breakingExpiresAt!.getTime() - capped.breakingStartedAt!.getTime())
+            .toBe(24 * 60 * 60 * 1000);
+
+        const expired = await Story.create(
+            storyPayload({
+                title: 'Expired Breaking Story Visibility Test',
+                isBreaking: true,
+                breakingExpiresAt: new Date(Date.now() - 60 * 1000),
+            }),
+        );
+
+        const detail = await request(app).get(`/api/v1/stories/${expired.slug}`);
+        expect(detail.status).toBe(200);
+        expect(detail.body.data.isBreaking).toBe(false);
+
+        const breaking = await request(app).get('/api/v1/stories/breaking');
+        expect(breaking.body.data.map((story: { slug: string }) => story.slug)).not.toContain(expired.slug);
+        expect(breaking.body.data.map((story: { slug: string }) => story.slug)).toContain(fresh.slug);
+
+        const oldLegacy = await Story.create(
+            storyPayload({
+                title: 'Legacy Breaking Story Expiration Test',
+                isBreaking: true,
+            }),
+        );
+        const legacyDate = new Date(Date.now() - 48 * 60 * 60 * 1000);
+        await Story.collection.updateOne(
+            { _id: oldLegacy._id },
+            {
+                $set: {
+                    breakingExpiresAt: null,
+                    breakingStartedAt: null,
+                    createdAt: legacyDate,
+                    updatedAt: legacyDate,
+                },
+            },
+        );
+        const legacyResponse = await request(app).get(`/api/v1/stories/${oldLegacy.slug}`);
+        expect(legacyResponse.body.data.isBreaking).toBe(false);
+    });
 });

@@ -8,6 +8,24 @@ import { sanitizeContent } from '../utils/sanitize.js';
 
 export type PublicStory = Record<string, unknown>;
 
+const BREAKING_DURATION_MS = 24 * 60 * 60 * 1000;
+
+function isBreakingActive(story: Record<string, unknown>, now = Date.now()): boolean {
+    if (!story.isBreaking) return false;
+    const startedAt = new Date(String(
+        story.breakingStartedAt ?? story.updatedAt ?? story.createdAt ?? story.publishedAt,
+    )).getTime();
+    if (Number.isNaN(startedAt)) return false;
+
+    let expiresAt = startedAt + BREAKING_DURATION_MS;
+    if (story.breakingExpiresAt) {
+        const customExpiry = new Date(String(story.breakingExpiresAt)).getTime();
+        if (Number.isNaN(customExpiry)) return false;
+        expiresAt = Math.min(expiresAt, customExpiry);
+    }
+    return expiresAt > now;
+}
+
 export function publicStoryFilter(extra: FilterQuery<StoryAttrs> = {}): FilterQuery<StoryAttrs> {
     const { publishedAt, status: _ignoredStatus, ...rest } = extra as FilterQuery<StoryAttrs> & {
         status?: unknown;
@@ -34,6 +52,10 @@ function stripScore<T>(doc: T): T {
 function formatPublicStory(doc: Record<string, unknown>): PublicStory {
     const story = stripScore({ ...doc });
     if (typeof story.content === 'string') story.content = sanitizeContent(story.content);
+    story.isBreaking = isBreakingActive(story);
+    delete story.breakingStartedAt;
+    delete story.createdAt;
+    delete story.updatedAt;
     return story;
 }
 
@@ -143,11 +165,29 @@ export async function getTopStories(): Promise<PublicStory[]> {
 
 export async function getBreakingStories(): Promise<PublicStory[]> {
     const now = new Date();
+    const legacyFallbackStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const filter = publicStoryFilter({
         isBreaking: true,
         $or: [
-            { breakingExpiresAt: { $gt: now } },
-            { breakingExpiresAt: null }
+            {
+                breakingStartedAt: { $gt: legacyFallbackStart },
+                $or: [
+                    { breakingExpiresAt: { $gt: now } },
+                    { breakingExpiresAt: null },
+                ],
+            },
+            {
+                breakingExpiresAt: null,
+                $or: [
+                    { breakingStartedAt: { $gt: legacyFallbackStart } },
+                    { breakingStartedAt: null, updatedAt: { $gt: legacyFallbackStart } },
+                ],
+            },
+            {
+                breakingStartedAt: null,
+                updatedAt: { $gt: legacyFallbackStart },
+                breakingExpiresAt: { $gt: now },
+            },
         ]
     });
 
@@ -228,10 +268,15 @@ export async function adminListStories(params: AdminListParams) {
     if (q) filter.$text = { $search: q };
 
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
+    const [docs, total] = await Promise.all([
         Story.find(filter).sort({ publishedAt: -1, _id: -1 }).skip(skip).limit(limit).lean(),
         Story.countDocuments(filter),
     ]);
+    const data = docs.map((doc) => {
+        const story = doc as unknown as Record<string, unknown>;
+        story.isBreaking = isBreakingActive(story);
+        return story;
+    });
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
     return { data, pagination: { page, limit, total, totalPages, hasMore: page < totalPages } };

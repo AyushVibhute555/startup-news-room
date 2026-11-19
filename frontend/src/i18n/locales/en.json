@@ -55,6 +55,7 @@
         "minRead": "{{count}} min read",
         "relatedStories": "Related stories",
         "keyFacts": "Key facts",
+        "atAGlance": "At a glance",
         "readFullAt": "Read full story at {{source}}",
         "share": "Share",
         "copyLink": "Copy link",

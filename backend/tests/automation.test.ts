@@ -105,4 +105,67 @@ describe('automation publishing API', () => {
         expect(response.status).toBe(400);
         expect(response.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
     });
+
+    it('updates stories using the automation key and supports headline, hero, and breaking changes', async () => {
+        await ensureCategory('ai', 'AI', 1);
+        const previousHero = await Story.create({
+            title: 'Previous Hero Before Automation Update Test',
+            summary: 'A sufficiently long subheading for the previous hero story test.',
+            content: 'Previous hero article content used for the automation test.',
+            imageUrl: 'https://images.example.com/previous-hero.jpg',
+            categories: ['ai'],
+            homepageSlot: 'lead',
+        });
+        const story = await Story.create({
+            title: 'Automation Story Update Route Test',
+            summary: 'A sufficiently long subheading for the automation story update test.',
+            content: 'The full article content used for the automation update route.',
+            imageUrl: 'https://images.example.com/update.jpg',
+            categories: ['ai'],
+            isBreaking: true,
+        });
+
+        const unauthorized = await request(app)
+            .patch(`/api/v1/stories/${story.id}`)
+            .send({ isBreaking: false });
+        expect(unauthorized.status).toBe(401);
+
+        const update = await request(app)
+            .patch(`/api/v1/stories/${story.id}`)
+            .set('X-API-Key', apiKey)
+            .send({
+                headline: 'Automation Story Updated With A Corrected Headline',
+                homepageSlot: 'lead',
+                isBreaking: false,
+            });
+        expect(update.status).toBe(200);
+        expect(update.body.data).toMatchObject({
+            id: story.id,
+            headline: 'Automation Story Updated With A Corrected Headline',
+            homepageSlot: 'lead',
+            isBreaking: false,
+        });
+        expect(update.body.data.slug).toBe(story.slug);
+
+        const stored = await Story.findById(story.id);
+        expect(stored?.title).toBe('Automation Story Updated With A Corrected Headline');
+        expect(stored?.breakingExpiresAt).toBeNull();
+        const demotedHero = await Story.findById(previousHero.id);
+        expect(demotedHero?.homepageSlot).toBe('none');
+        expect(demotedHero?.content).toContain('Previous hero article content');
+    });
+
+    it('rejects empty updates and unknown story IDs', async () => {
+        const empty = await request(app)
+            .patch('/api/v1/stories/507f1f77bcf86cd799439011')
+            .set('X-API-Key', apiKey)
+            .send({});
+        expect(empty.status).toBe(400);
+
+        const missing = await request(app)
+            .patch('/api/v1/stories/507f1f77bcf86cd799439011')
+            .set('X-API-Key', apiKey)
+            .send({ isBreaking: false });
+        expect(missing.status).toBe(404);
+    });
 });
