@@ -82,7 +82,7 @@ export function Header() {
   // Build the dynamic NAV array
   const NAV = [
     { slug: "/", label: t("nav.all"), isCustom: true },
-    { slug: "/latest", label: "Latest Updates", isCustom: true },
+    { slug: "/latest", label: t("home.latestUpdates"), isCustom: true },
     ...(liveCats?.map((c) => ({ slug: c.slug, label: c.name })) || []),
   ];
 
@@ -207,7 +207,7 @@ export function Header() {
           <div className="border-t border-[rgba(16,19,18,0.06)] bg-[#F2F4F3]">
             <Container className="flex h-9 items-center justify-start gap-4">
               <span className="hidden text-[11px] font-bold uppercase tracking-wider text-[#565C5A] sm:inline">
-                Language:
+                {t("header.changeLanguage")}:
               </span>
               <LanguageSwitcher />
             </Container>

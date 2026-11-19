@@ -16,10 +16,18 @@
     "footer": {
         "rights": "సర్వ హక్కులు కలవు.",
         "privacy": "గోప్యత",
-        "terms": "నిబంధనలు"
+        "terms": "నిబంధనలు",
+        "categories": "వర్గాలు"
     },
     "categories": {
-        "ipo-markets": "ఐపీఓలు & మార్కెట్లు"
+        "funding": "నిధుల సమీకరణ",
+        "launches": "కొత్త ప్రారంభాలు",
+        "ai": "కృత్రిమ మేధస్సు",
+        "fintech": "ఫిన్‌టెక్",
+        "saas": "SaaS",
+        "founders": "వ్యవస్థాపకులు",
+        "ipo-markets": "ఐపీఓలు & మార్కెట్లు",
+        "policy": "విధానం"
     },
     "home": {
         "topStories": "ప్రధాన వార్తలు",

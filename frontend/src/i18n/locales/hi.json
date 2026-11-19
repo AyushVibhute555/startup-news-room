@@ -16,10 +16,18 @@
     "footer": {
         "rights": "सर्वाधिकार सुरक्षित।",
         "privacy": "गोपनीयता",
-        "terms": "शर्तें"
+        "terms": "शर्तें",
+        "categories": "श्रेणियाँ"
     },
     "categories": {
-        "ipo-markets": "आईपीओ और बाज़ार"
+        "funding": "फंडिंग",
+        "launches": "लॉन्च",
+        "ai": "कृत्रिम बुद्धिमत्ता",
+        "fintech": "फिनटेक",
+        "saas": "SaaS",
+        "founders": "संस्थापक",
+        "ipo-markets": "आईपीओ और बाज़ार",
+        "policy": "नीति"
     },
     "home": {
         "topStories": "मुख्य खबरें",
