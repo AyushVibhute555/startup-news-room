@@ -135,7 +135,7 @@ export function Header() {
           <Container className="flex h-full items-center justify-between gap-4">
             <Link to="/" aria-label="Startup News Room, home" className="flex min-w-0 items-center gap-3">
               <motion.div style={{ scale: logoScale, transformOrigin: "left center" }} className="flex items-center gap-3">
-                <img src="/startup_news_room_logo.jpg" alt="Startup News Room Logo" className="h-9 w-auto object-contain mix-blend-darken" />
+                <img src="/startup_news_room_logo.jpg" alt="Startup News Room Logo" className="h-10.5 w-auto object-contain mix-blend-darken" />
               </motion.div>
             </Link>
 
