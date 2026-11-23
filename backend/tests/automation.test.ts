@@ -106,6 +106,41 @@ describe('automation publishing API', () => {
         expect(response.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
     });
 
+    it('changes only the submitted field in a story update', async () => {
+        await ensureCategory('ai', 'AI', 1);
+        const story = await Story.create({
+            title: 'Automation Headline Before Single Field Update',
+            summary: 'A sufficiently long subheading for the single-field automation update test.',
+            content: 'The unchanged article content for the single-field automation update test.',
+            imageUrl: 'https://images.example.com/single-field-update.jpg',
+            author: 'Original Author',
+            categories: ['ai'],
+            tags: ['original-tag'],
+            companies: ['Original Company'],
+            region: 'India',
+            city: 'Bengaluru',
+            status: 'draft',
+            homepageSlot: 'top',
+        });
+        const unchangedFields =
+            'slug summary content author imageUrl imageCredit sourceName sourceUrl category categories region city companies keyFacts fundingDetails isSponsored sponsorName homepageSlot breakingExpiresAt breakingStartedAt tags status publishedAt isFeatured isBreaking createdBy';
+        const before = await Story.findById(story.id).select(unchangedFields).lean();
+
+        const response = await request(app)
+            .patch(`/api/v1/stories/${story.id}`)
+            .set('X-API-Key', apiKey)
+            .send({ headline: 'Automation Headline After Single Field Update' });
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.headline).toBe('Automation Headline After Single Field Update');
+        expect(response.body.data.slug).toBe(story.slug);
+
+        const updated = await Story.findById(story.id);
+        const after = await Story.findById(story.id).select(unchangedFields).lean();
+        expect(updated?.title).toBe('Automation Headline After Single Field Update');
+        expect(after).toEqual(before);
+    });
+
     it('updates stories using the automation key and supports headline, hero, and breaking changes', async () => {
         await ensureCategory('ai', 'AI', 1);
         const previousHero = await Story.create({

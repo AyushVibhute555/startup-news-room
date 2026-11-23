@@ -136,7 +136,11 @@ export function StoriesListPage() {
                                             {s.title}
                                         </Link>
                                     </td>
-                                    <td className="px-3 py-3 capitalize">{s.category}</td>
+                                    <td className="px-3 py-3">
+                                        {(s.categories?.length ? s.categories : s.category ? [s.category] : [])
+                                            .map((slug) => categories.find((c) => c.slug === slug)?.name ?? slug)
+                                            .join(", ") || "—"}
+                                    </td>
                                     <td className="px-3 py-3">
                                         <span className={`rounded px-2 py-0.5 text-xs ${s.status === "published" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
                                             {s.status}

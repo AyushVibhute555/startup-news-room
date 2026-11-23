@@ -184,20 +184,6 @@ export function StoryPage({ story }: { story: Story }) {
             </div>
           </div>
 
-          {story.keyFacts && story.keyFacts.length > 0 && (
-            <section aria-labelledby="key-facts-heading" className="mx-auto mt-8 max-w-[880px] rounded-r-lg border border-border border-l-4 border-l-signal bg-surface-alt p-5 sm:p-7">
-              <h2 id="key-facts-heading" className="font-label text-xl">{t("story.atAGlance")}</h2>
-              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-                {story.keyFacts.map((fact, index) => (
-                  <div key={`${fact.label}-${index}`} className="border-t border-border pt-3">
-                    <dt className="text-sm text-muted-foreground">{fact.label}</dt>
-                    <dd className="mt-1 font-semibold">{fact.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          )}
-
           <figure className="mx-auto mt-10 max-w-[1100px]">
             <StoryImage src={story.imageUrl} alt={story.title} ratio="16/9" eager zoom={false} />
             <figcaption className="mt-3 text-[0.8125rem] text-muted-foreground">
@@ -219,8 +205,29 @@ export function StoryPage({ story }: { story: Story }) {
                 </p>
               )
             )}
+          </div>
 
-            {story.tags && story.tags.length > 0 && (
+          {story.keyFacts && story.keyFacts.length > 0 && (
+            <section
+              aria-labelledby="key-facts-heading"
+              className="mx-auto mt-8 max-w-[880px] rounded-r-lg border border-border border-l-4 border-l-signal bg-surface-alt p-5 sm:p-7"
+            >
+              <h2 id="key-facts-heading" className="font-label text-xl">
+                {t("story.atAGlance")}
+              </h2>
+              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+                {story.keyFacts.map((fact, index) => (
+                  <div key={`${fact.label}-${index}`} className="border-t border-border pt-3">
+                    <dt className="text-sm text-muted-foreground">{fact.label}</dt>
+                    <dd className="mt-1 font-semibold">{fact.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
+          {story.tags && story.tags.length > 0 && (
+            <div className="mx-auto max-w-[680px]">
               <ul className="mt-8 flex flex-wrap gap-2">
                 {story.tags.map((tag) => (
                   <li
@@ -231,8 +238,8 @@ export function StoryPage({ story }: { story: Story }) {
                   </li>
                 ))}
               </ul>
-            )}
-          </div>
+            </div>
+          )}
         </Container>
       </article>
 
