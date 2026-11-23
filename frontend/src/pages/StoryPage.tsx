@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { Check, Link2, Linkedin, MessageCircle, Twitter } from "lucide-react";
+import { Check, Link2, Linkedin, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
@@ -58,7 +58,13 @@ function ShareRow({ story }: { story: Story }) {
         onClick={() => trackEvent("share", "x_twitter", story.title)}
         href={`https://x.com/intent/post?url=${enc(url)}&text=${enc(story.title)}`}
       >
-        <Twitter className="h-4 w-4" />
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="h-4 w-4 fill-current"
+        >
+          <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.473l8.6-9.83L0 1.154h7.594l5.243 6.932zm-1.291 19.49h2.039L6.486 3.24H4.298z" />
+        </svg>
       </a>
       <a
         className={shareBtn}
