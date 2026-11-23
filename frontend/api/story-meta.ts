@@ -1,17 +1,76 @@
 import { env } from "node:process";
-import { SITE_URL } from "../src/lib/site";
-import { injectStorySeoHtml, type StorySeoData } from "../src/lib/story-seo-html";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 const STORY_API_URL = "https://startup-news-room-api.onrender.com/api/v1";
+const SITE_URL = "https://startupnewsroom.in";
+
+interface StorySeoData {
+  slug: string;
+  title: string;
+  summary: string;
+  imageUrl: string;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function injectStorySeoHtml(html: string, story: StorySeoData): string {
+  const title = `${story.title} | Startup News Room`;
+  const pageUrl = `${SITE_URL}/news/${encodeURIComponent(story.slug)}`;
+  const safeTitle = escapeHtml(title);
+  const safeSummary = escapeHtml(story.summary);
+  const safeImageUrl = escapeHtml(story.imageUrl);
+  const safePageUrl = escapeHtml(pageUrl);
+
+  const titleTag = /<title\b[^>]*>[\s\S]*?<\/title>/i;
+  let result = html.replace(titleTag, `<title>${safeTitle}</title>`);
+  if (!titleTag.test(html)) {
+    result = result.replace(/<\/head>/i, `<title>${safeTitle}</title>\n</head>`);
+  }
+
+  const descriptionTag = `<meta name="description" content="${safeSummary}" />`;
+  const descriptionPattern = /<meta\s+name=["']description["'][^>]*>/i;
+  if (descriptionPattern.test(result)) {
+    result = result.replace(descriptionPattern, descriptionTag);
+  } else {
+    result = result.replace(/<\/head>/i, `${descriptionTag}\n</head>`);
+  }
+
+  const socialTags = [
+    `<link rel="canonical" href="${safePageUrl}" />`,
+    '<meta property="og:type" content="article" />',
+    `<meta property="og:title" content="${safeTitle}" />`,
+    `<meta property="og:description" content="${safeSummary}" />`,
+    `<meta property="og:image" content="${safeImageUrl}" />`,
+    `<meta property="og:url" content="${safePageUrl}" />`,
+    '<meta property="og:site_name" content="Startup News Room" />',
+    '<meta name="twitter:card" content="summary_large_image" />',
+    `<meta name="twitter:title" content="${safeTitle}" />`,
+    `<meta name="twitter:description" content="${safeSummary}" />`,
+    `<meta name="twitter:image" content="${safeImageUrl}" />`,
+  ].join("\n");
+
+  return result.replace(/<\/head>/i, `${socialTags}\n</head>`);
+}
 
 function getDeploymentOrigin(): string {
-  const deploymentHost = env.VERCEL_URL;
+  const deploymentHost = env["VERCEL_URL"];
   return deploymentHost && /^[a-zA-Z0-9.-]+$/.test(deploymentHost)
     ? `https://${deploymentHost}`
     : SITE_URL;
 }
 
-function htmlResponse(body: string, status = 200, cacheControl = "public, s-maxage=60, stale-while-revalidate=300"): Response {
+function htmlResponse(
+  body: string,
+  status = 200,
+  cacheControl = "public, s-maxage=60, stale-while-revalidate=300",
+): Response {
   return new Response(body, {
     status,
     headers: {
@@ -25,31 +84,39 @@ function htmlResponse(body: string, status = 200, cacheControl = "public, s-maxa
 export async function GET(request: Request): Promise<Response> {
   const requestUrl = new URL(request.url);
   const slug = requestUrl.searchParams.get("slug");
-  if (!slug || slug.length > 200 || /[\/\\\u0000-\u001f]/.test(slug)) {
+  const containsControlCharacter = slug
+    ? [...slug].some((character) => character.charCodeAt(0) <= 0x1f)
+    : false;
+  if (
+    !slug ||
+    slug.length > 200 ||
+    slug.includes("/") ||
+    slug.includes("\\") ||
+    containsControlCharacter
+  ) {
     return new Response("A valid story slug is required.", {
       status: 400,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   }
 
+  let indexHtml: string | undefined;
   try {
-    const timeout = AbortSignal.timeout(7000);
-    const [indexResponse, storyResponse] = await Promise.all([
-      fetch(`${getDeploymentOrigin()}/index.html`, { signal: timeout }),
-      fetch(`${STORY_API_URL}/stories/${encodeURIComponent(slug)}`, {
-        headers: { Accept: "application/json" },
-        signal: timeout,
-      }),
-    ]);
-
+    const indexResponse = await fetch(`${getDeploymentOrigin()}/index.html`, {
+      signal: AbortSignal.timeout(7000),
+    });
     if (!indexResponse.ok) {
       throw new Error(`Could not load built app HTML (${indexResponse.status})`);
     }
+    indexHtml = await indexResponse.text();
 
-    const indexHtml = await indexResponse.text();
+    const storyResponse = await fetch(`${STORY_API_URL}/stories/${encodeURIComponent(slug)}`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(7000),
+    });
     if (!storyResponse.ok) {
       console.error("Story metadata request failed", { slug, status: storyResponse.status });
-      return htmlResponse(indexHtml, storyResponse.status === 404 ? 404 : 503, "no-store");
+      return htmlResponse(indexHtml, 200, "no-store");
     }
 
     const payload = (await storyResponse.json()) as { data?: StorySeoData };
@@ -64,9 +131,10 @@ export async function GET(request: Request): Promise<Response> {
       throw new Error("Story API returned incomplete metadata");
     }
 
-    return htmlResponse(injectStorySeoHtml(indexHtml, story, SITE_URL));
+    return htmlResponse(injectStorySeoHtml(indexHtml, story));
   } catch (error) {
     console.error("Story page rendering failed", { slug, error });
+    if (indexHtml) return htmlResponse(indexHtml, 200, "no-store");
     return new Response("Unable to load this story right now.", {
       status: 503,
       headers: {
@@ -75,4 +143,23 @@ export async function GET(request: Request): Promise<Response> {
       },
     });
   }
+}
+
+export default async function handler(
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<void> {
+  if (request.method !== "GET") {
+    response.statusCode = 405;
+    response.setHeader("Allow", "GET");
+    response.end("Method not allowed");
+    return;
+  }
+
+  const host = request.headers.host ?? "startupnewsroom.in";
+  const requestUrl = new URL(request.url ?? "/", `https://${host}`);
+  const result = await GET(new Request(requestUrl));
+  response.statusCode = result.status;
+  result.headers.forEach((value, name) => response.setHeader(name, value));
+  response.end(await result.text());
 }
