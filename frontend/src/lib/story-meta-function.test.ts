@@ -30,8 +30,8 @@ describe("story metadata function", () => {
   });
 
   it("returns the built SPA shell with server-rendered story metadata", async () => {
-    vi.stubEnv("VERCEL_URL", "");
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    vi.stubEnv("VERCEL_URL", "protected-deployment.vercel.app");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       if (String(input).endsWith("/index.html")) {
         return new Response(
           '<!doctype html><html><head><title>Startup News Room</title><meta name="description" content="Default" /></head><body><div id="root"></div></body></html>',
@@ -64,10 +64,13 @@ describe("story metadata function", () => {
       '<meta property="og:image" content="https://images.example.com/story.jpg" />',
     );
     expect(html).toContain('<div id="root"></div>');
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://startupnewsroom.in/index.html",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it("uses the default Node handler expected by Vercel functions", async () => {
-    vi.stubEnv("VERCEL_URL", "");
     const realFetch = globalThis.fetch;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       if (String(input).endsWith("/index.html")) {
@@ -98,7 +101,6 @@ describe("story metadata function", () => {
   });
 
   it("falls back to the SPA shell when story metadata cannot be fetched", async () => {
-    vi.stubEnv("VERCEL_URL", "");
     const realFetch = globalThis.fetch;
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(

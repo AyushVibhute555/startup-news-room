@@ -1,4 +1,3 @@
-import { env } from "node:process";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 const STORY_API_URL = "https://startup-news-room-api.onrender.com/api/v1";
@@ -59,13 +58,6 @@ function injectStorySeoHtml(html: string, story: StorySeoData): string {
   return result.replace(/<\/head>/i, `${socialTags}\n</head>`);
 }
 
-function getDeploymentOrigin(): string {
-  const deploymentHost = env["VERCEL_URL"];
-  return deploymentHost && /^[a-zA-Z0-9.-]+$/.test(deploymentHost)
-    ? `https://${deploymentHost}`
-    : SITE_URL;
-}
-
 function htmlResponse(
   body: string,
   status = 200,
@@ -102,7 +94,7 @@ export async function GET(request: Request): Promise<Response> {
 
   let indexHtml: string | undefined;
   try {
-    const indexResponse = await fetch(`${getDeploymentOrigin()}/index.html`, {
+    const indexResponse = await fetch(`${SITE_URL}/index.html`, {
       signal: AbortSignal.timeout(7000),
     });
     if (!indexResponse.ok) {
